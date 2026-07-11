@@ -350,6 +350,58 @@
         }
         ranking[id][categoria] = (ranking[id][categoria] || 0) + 1;
         localStorage.setItem('vv_ranking', JSON.stringify(ranking));
+
+        if (LISTA_CURADA.includes(Number(id))) calcularSimilaridade();
+    }
+
+    // ── SIMILARIDADE COM DEPUTADOS ────────────────────────────────────────────
+    function calcularSimilaridade() {
+        try {
+            const votosDeputados = JSON.parse(localStorage.getItem('vv_votos_deputados') || '{}');
+            const historico      = JSON.parse(localStorage.getItem('vv_historico')       || '[]');
+
+            // Último voto do usuário por lei curada (historico é append-only, varrer ao contrário)
+            const votosUsuario = {};
+            for (const item of [...historico].reverse()) {
+                if (LISTA_CURADA.includes(Number(item.id)) && !votosUsuario[item.id]) {
+                    votosUsuario[item.id] = item.categoria;
+                }
+            }
+
+            function compativel(userCat, depVoto) {
+                if ((userCat === 'voto' || userCat === 'inegociavel_voto')   && depVoto === 'Sim')      return true;
+                if ((userCat === 'veto' || userCat === 'inegociavel_veto')   && depVoto === 'Não')      return true;
+                if (userCat === 'abstencao' && (depVoto === 'Abstenção' || depVoto === 'Obstrução'))    return true;
+                return false;
+            }
+
+            const acum = {};
+            for (const [propId, userCat] of Object.entries(votosUsuario)) {
+                const votos = votosDeputados[propId];
+                if (!votos) continue;
+                for (const dep of votos) {
+                    const key = String(dep.idDeputado);
+                    if (!acum[key]) {
+                        acum[key] = {
+                            idDeputado:       dep.idDeputado,
+                            nomeDeputado:     dep.nomeDeputado,
+                            siglaPartido:     dep.siglaPartido,
+                            siglaUf:          dep.siglaUf,
+                            totalLeis:        0,
+                            totalCompativeis: 0
+                        };
+                    }
+                    acum[key].totalLeis++;
+                    if (compativel(userCat, dep.voto)) acum[key].totalCompativeis++;
+                }
+            }
+
+            const resultado = Object.values(acum)
+                .map(d => ({ ...d, percentual: d.totalLeis > 0 ? (d.totalCompativeis / d.totalLeis) * 100 : 0 }))
+                .sort((a, b) => b.percentual - a.percentual);
+
+            localStorage.setItem('vv_similaridade', JSON.stringify(resultado));
+        } catch (_) {}
     }
 
     // ── FETCH COM FALLBACK CORS ──────────────────────────────────────────────
