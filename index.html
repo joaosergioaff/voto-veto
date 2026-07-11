@@ -10,6 +10,7 @@
         .swipe-left  { transform: translateX(-160%) rotate(-22deg); opacity: 0; }
         .swipe-right { transform: translateX(160%)  rotate(22deg);  opacity: 0; }
         .gold-glow   { box-shadow: 0 0 28px #ffd700; border: 3px solid #ffd700 !important; }
+        .fade-out    { transition: opacity 0.35s ease; opacity: 0; }
         .skeleton { animation: pulse 1.4s infinite; background: #e5e7eb; border-radius: 6px; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
         .btn-pulse { animation: btn-pop 0.6s ease infinite alternate; }
@@ -38,6 +39,10 @@
         <button id="btn-ouro" onclick="acionar('ouro')"
             class="bg-yellow-400 hover:bg-yellow-300 active:scale-90 transition p-4 rounded-full w-20 h-20 flex items-center justify-center shadow-lg border-4 border-yellow-200 text-3xl"
             title="Moeda de Ouro">🪙</button>
+
+        <button id="btn-abstencao" onclick="abster()"
+            class="bg-gray-600 hover:bg-gray-500 active:scale-90 transition p-3 rounded-full w-12 h-12 flex items-center justify-center shadow-lg text-xl"
+            title="Abster — decidir depois">⏭️</button>
 
         <button id="btn-voto" onclick="acionar('voto')"
             class="bg-green-600 hover:bg-green-500 active:scale-90 transition p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl"
@@ -252,6 +257,25 @@
             atualizarStatus();
             renderizarCard();
         }, 500);
+    }
+
+    function abster() {
+        const card    = document.getElementById('main-card');
+        const feedback = document.getElementById('feedback');
+        if (!card) return;
+
+        const prop = proposicoes[idx];
+        salvarVoto(prop, 'abstencao');
+        feedback.innerText = '⏭️ Adiado para depois!';
+
+        card.classList.add('fade-out');
+
+        setTimeout(() => {
+            idx++;
+            feedback.innerText = '';
+            atualizarStatus();
+            renderizarCard();
+        }, 400);
     }
 
     function ativarOuro() {
