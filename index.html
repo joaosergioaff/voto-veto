@@ -19,7 +19,11 @@
 </head>
 <body class="bg-gray-900 font-sans text-white select-none">
 
-    <!-- ── BOTÃO FLUTUANTE RANKING ──────────────────────────────────────── -->
+    <!-- ── BOTÕES FLUTUANTES ─────────────────────────────────────────────── -->
+    <button onclick="abrirHistorico()"
+        class="fixed top-4 left-4 z-50 bg-gray-700 hover:bg-gray-600 active:scale-90 transition w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-2xl"
+        title="Ver histórico">📋</button>
+
     <button onclick="abrirRanking()"
         class="fixed top-4 right-4 z-50 bg-yellow-400 hover:bg-yellow-300 active:scale-90 transition w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-2xl"
         title="Ver ranking">🏆</button>
@@ -79,6 +83,32 @@
 
     </div><!-- /tela-ranking -->
 
+    <!-- ── TELA HISTÓRICO ───────────────────────────────────────────────────── -->
+    <div id="tela-historico" class="hidden flex-col min-h-screen p-4 w-full max-w-lg mx-auto">
+
+        <!-- Cabeçalho -->
+        <div class="flex items-center gap-3 pt-4 pb-4">
+            <button onclick="fecharHistorico()"
+                class="bg-gray-700 hover:bg-gray-600 active:scale-90 transition px-4 py-2 rounded-full text-sm font-bold">
+                ← Voltar
+            </button>
+            <h2 class="text-xl font-black text-gray-200">📋 Histórico</h2>
+        </div>
+
+        <!-- Filtros -->
+        <div class="flex gap-2 overflow-x-auto pb-3 scrollbar-hide" style="scrollbar-width:none;">
+            <button onclick="renderizarHistorico('todos')"      id="f-todos"         class="filtro-btn whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold transition">Todos</button>
+            <button onclick="renderizarHistorico('voto')"       id="f-voto"          class="filtro-btn whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold transition">✅ Votos</button>
+            <button onclick="renderizarHistorico('veto')"       id="f-veto"          class="filtro-btn whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold transition">❌ Vetos</button>
+            <button onclick="renderizarHistorico('inegociavel')" id="f-inegociavel"  class="filtro-btn whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold transition">🪙 Inegociáveis</button>
+            <button onclick="renderizarHistorico('abstencao')"  id="f-abstencao"     class="filtro-btn whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold transition">⏭️ Pendentes</button>
+        </div>
+
+        <!-- Lista -->
+        <div id="historico-lista" class="flex flex-col gap-3 pb-8"></div>
+
+    </div><!-- /tela-historico -->
+
     <script>
     // ── CONFIGURAÇÃO ────────────────────────────────────────────────────────
     const API_DIRETA   = 'https://dadosabertos.camara.leg.br/api/v2';
@@ -109,6 +139,11 @@
             data:      new Date().toISOString()
         };
         localStorage.setItem('vv_votos', JSON.stringify(votos));
+
+        // Histórico cronológico (append-only)
+        const historico = JSON.parse(localStorage.getItem('vv_historico') || '[]');
+        historico.push({ id, titulo: votos[id].titulo, ementa: prop.ementa || '', categoria, data: votos[id].data });
+        localStorage.setItem('vv_historico', JSON.stringify(historico));
 
         // Contagens para o ranking
         const ranking = JSON.parse(localStorage.getItem('vv_ranking') || '{}');
@@ -431,6 +466,89 @@
                 <div class="flex flex-wrap gap-x-2 gap-y-1 mt-1">
                     ${legendaHTML}
                 </div>
+            </div>`;
+        }).join('');
+    }
+
+    // ── TELA DE HISTÓRICO ────────────────────────────────────────────────────
+    const BADGES = {
+        voto:             { label: '✅ Voto a favor',    cls: 'bg-green-600 text-white' },
+        veto:             { label: '❌ Veto',             cls: 'bg-red-600 text-white' },
+        inegociavel_voto: { label: '🪙✅ Inegociável',   cls: 'bg-yellow-400 text-yellow-900' },
+        inegociavel_veto: { label: '🪙❌ Inegociável',   cls: 'bg-orange-500 text-white' },
+        abstencao:        { label: '⏭️ Pendente',        cls: 'bg-gray-600 text-gray-200' },
+    };
+
+    let filtroAtivo = 'todos';
+
+    function abrirHistorico() {
+        document.getElementById('tela-principal').classList.add('hidden');
+        const tela = document.getElementById('tela-historico');
+        tela.classList.remove('hidden');
+        tela.classList.add('flex');
+        renderizarHistorico('todos');
+    }
+
+    function fecharHistorico() {
+        const tela = document.getElementById('tela-historico');
+        tela.classList.add('hidden');
+        tela.classList.remove('flex');
+        document.getElementById('tela-principal').classList.remove('hidden');
+    }
+
+    function renderizarHistorico(filtro) {
+        filtroAtivo = filtro;
+
+        // Atualiza visual dos botões de filtro
+        const mapa = { todos:'f-todos', voto:'f-voto', veto:'f-veto', inegociavel:'f-inegociavel', abstencao:'f-abstencao' };
+        Object.entries(mapa).forEach(([k, id]) => {
+            const btn = document.getElementById(id);
+            btn.className = btn.className.replace(/bg-\S+|text-\S+/g, '').trim();
+            if (k === filtroAtivo) {
+                btn.classList.add('bg-white', 'text-gray-900');
+            } else {
+                btn.classList.add('bg-gray-700', 'text-gray-300');
+            }
+        });
+
+        const lista    = document.getElementById('historico-lista');
+        const historico = JSON.parse(localStorage.getItem('vv_historico') || '[]');
+
+        const filtrado = [...historico].reverse().filter(item => {
+            if (filtroAtivo === 'todos')       return true;
+            if (filtroAtivo === 'inegociavel') return item.categoria === 'inegociavel_voto' || item.categoria === 'inegociavel_veto';
+            return item.categoria === filtroAtivo;
+        });
+
+        if (filtrado.length === 0) {
+            const msg = historico.length === 0
+                ? '<p class="text-gray-500 text-sm">Volte à tela principal e vote nas proposições.</p>'
+                : '<p class="text-gray-500 text-sm">Nenhuma votação nesta categoria.</p>';
+            lista.innerHTML = `
+                <div class="flex flex-col items-center justify-center gap-4 mt-20 text-center">
+                    <span class="text-5xl">🗳️</span>
+                    <p class="text-gray-300 font-bold text-lg">Nada aqui ainda!</p>
+                    ${msg}
+                </div>`;
+            return;
+        }
+
+        lista.innerHTML = filtrado.map(item => {
+            const badge   = BADGES[item.categoria] || { label: item.categoria, cls: 'bg-gray-600 text-white' };
+            const ementa  = (item.ementa || '').length > 110 ? item.ementa.slice(0, 110) + '…' : (item.ementa || 'Sem descrição.');
+            const dataFmt = new Date(item.data).toLocaleString('pt-BR', {
+                day: 'numeric', month: 'long', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+
+            return `
+            <div class="bg-gray-800 rounded-2xl p-4 shadow flex flex-col gap-1.5">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-yellow-400 font-black text-sm">${item.titulo}</span>
+                    <span class="shrink-0 text-xs font-bold px-2.5 py-1 rounded-full ${badge.cls}">${badge.label}</span>
+                </div>
+                <p class="text-gray-400 text-xs leading-relaxed">${ementa}</p>
+                <p class="text-gray-600 text-xs">${dataFmt}</p>
             </div>`;
         }).join('');
     }
