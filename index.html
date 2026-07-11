@@ -45,30 +45,7 @@
             <p id="status-text" class="text-gray-400 text-xs mt-1">Carregando projetos de lei...</p>
         </div>
 
-        <div id="card-container" class="relative w-full max-w-sm" style="height:490px;"></div>
-
-        <!-- Banner de Moeda de Ouro ativada -->
-        <div id="gold-banner" class="hidden mt-4 bg-yellow-400 text-yellow-900 font-bold text-sm px-5 py-2 rounded-full shadow-lg text-center">
-            🪙 Moeda de Ouro ativada — agora escolha ✔️ ou ✖️
-        </div>
-
-        <div class="flex gap-6 mt-4 items-center">
-            <button id="btn-veto" onclick="acionar('veto')"
-                class="bg-red-600 hover:bg-red-500 active:scale-90 transition p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl"
-                title="Vetar">✖️</button>
-
-            <button id="btn-ouro" onclick="acionar('ouro')"
-                class="bg-yellow-400 hover:bg-yellow-300 active:scale-90 transition p-4 rounded-full w-20 h-20 flex items-center justify-center shadow-lg border-4 border-yellow-200 text-3xl"
-                title="Moeda de Ouro">🪙</button>
-
-            <button id="btn-abstencao" onclick="abster()"
-                class="bg-gray-600 hover:bg-gray-500 active:scale-90 transition p-3 rounded-full w-12 h-12 flex items-center justify-center shadow-lg text-xl"
-                title="Abster — decidir depois">⏭️</button>
-
-            <button id="btn-voto" onclick="acionar('voto')"
-                class="bg-green-600 hover:bg-green-500 active:scale-90 transition p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl"
-                title="Votar a favor">✔️</button>
-        </div>
+        <div id="card-container" class="relative w-full max-w-sm" style="height:520px;"></div>
 
         <p id="feedback" class="mt-5 text-yellow-300 font-bold text-lg h-6 text-center"></p>
         <p id="contador" class="text-gray-500 text-xs mt-2"></p>
@@ -359,6 +336,7 @@
     let pagina       = 1;
     let carregando   = false;
     let ouroAtivado  = false;
+    let _cardIdx    = 0;
 
     // ── LOCALSTORAGE ─────────────────────────────────────────────────────────
     // vv_votos   : { [id]: { titulo, ementa, categoria, data } }   — último voto por lei
@@ -507,6 +485,211 @@
         carregando = false;
     }
 
+    // ── TEMA / IMAGEM / PRÓ / CONTRA ─────────────────────────────────────────
+    const TEMA_KEYWORDS = {
+        'Trabalho':      'work,labor,office',
+        'Impostos':      'money,finance,tax',
+        'Saúde':         'health,hospital,medicine',
+        'Educação':      'education,school,children',
+        'Segurança':     'police,security,justice',
+        'Previdência':   'elderly,retirement,pension',
+        'Meio Ambiente': 'nature,environment,brazil',
+        'Tecnologia':    'technology,digital,internet',
+        'Habitação':     'housing,home,construction',
+        'Transporte':    'transport,road,urban',
+    };
+
+    function detectarTema(ementa) {
+        const e = (ementa || '').toLowerCase();
+        if (/trabalho|emprego|jornada|sal.rio|trabalhador/.test(e))       return 'Trabalho';
+        if (/imposto|tributo|renda|fiscal|tribut.rio/.test(e))            return 'Impostos';
+        if (/sa.de|hospital|m.dico|medicamento/.test(e))                  return 'Saúde';
+        if (/educa..o|escola|ensino|estudante/.test(e))                   return 'Educação';
+        if (/seguran.a|crime|pol.cia|penal/.test(e))                      return 'Segurança';
+        if (/previd.ncia|aposentadoria|pens.o/.test(e))                   return 'Previdência';
+        if (/ambiente|floresta|clima|ambiental|sustent.vel/.test(e))      return 'Meio Ambiente';
+        if (/tecnologia|digital|internet|dados|software/.test(e))         return 'Tecnologia';
+        if (/habita..o|moradia|im.vel|residencial/.test(e))               return 'Habitação';
+        if (/transporte|rodovia|mobilidade|tr.nsito|ve.culo/.test(e))     return 'Transporte';
+        return null;
+    }
+
+    function unsplashUrl(ementa) {
+        const tema = detectarTema(ementa);
+        const kw   = tema ? TEMA_KEYWORDS[tema] : 'brazil,congress,democracy';
+        return `https://source.unsplash.com/800x600/?${kw}`;
+    }
+
+    function gerarPositivos(ementa) {
+        const e = (ementa || '').toLowerCase();
+        const pts = [];
+        if (/redu..o|reduz|isen..o|isenta|gratuito|gratuita|desconto/.test(e))
+            pts.push('Benefício financeiro direto para os cidadãos contemplados pela lei');
+        if (/prote..o|protege|direito|garantia|assegura|ampara/.test(e))
+            pts.push('Reforça direitos e proteções já previstos na Constituição');
+        if (/cria..o|cria\b|programa|fundo|institui|estabelece/.test(e))
+            pts.push('Cria nova iniciativa ou estrutura para atender demanda identificada');
+        if (/emprego|trabalho|renda|sal.rio/.test(e))
+            pts.push('Pode gerar impacto positivo no mercado de trabalho e na renda dos trabalhadores');
+        if (/sa.de|hospital|medicamento/.test(e))
+            pts.push('Contribui para a melhoria do acesso à saúde pública');
+        if (/educa..o|escola|ensino/.test(e))
+            pts.push('Fortalece o sistema educacional e amplia oportunidades de aprendizado');
+        const gen = [
+            'Atende demanda identificada por parlamentares como relevante para a sociedade',
+            'Busca modernizar a legislação vigente para adequá-la à realidade atual',
+            'Pode melhorar a qualidade de vida de grupos específicos da população'
+        ];
+        let gi = 0;
+        while (pts.length < 3) pts.push(gen[gi++ % gen.length]);
+        return pts.slice(0, 3);
+    }
+
+    function gerarNegativos(ementa) {
+        const e = (ementa || '').toLowerCase();
+        const pts = [];
+        if (/altera..o|altera\b|modifica|revoga/.test(e))
+            pts.push('Modifica legislação existente, podendo gerar período de adaptação e insegurança jurídica');
+        if (/recurso|custo|despesa|or.amento|fiscal/.test(e))
+            pts.push('Pode ter impacto no orçamento público e exigir novas fontes de financiamento');
+        if (/isen..o|isenta|desoner/.test(e))
+            pts.push('Redução de arrecadação pode comprometer recursos destinados a outros serviços públicos');
+        if (/obrigat.rio|obrigat.ria|compuls.rio/.test(e))
+            pts.push('Caráter obrigatório pode gerar resistência de setores afetados pela mudança');
+        pts.push('Aguarda votação final e implementação, podendo ser alterada no processo legislativo');
+        const gen = [
+            'Implementação pode ser lenta e depender de regulamentação complementar',
+            'Efetividade depende de fiscalização adequada pelos órgãos competentes',
+            'Pode aumentar a burocracia para órgãos responsáveis pela execução'
+        ];
+        let gi = 0;
+        while (pts.length < 3) pts.push(gen[gi++ % gen.length]);
+        return pts.slice(0, 3);
+    }
+
+    function htmlSubCard(n, p) {
+        const kids      = modoKids();
+        const isCurada  = LISTA_CURADA.includes(Number(p.id));
+        const textoKids = (kids && isCurada && TEXTOS_KIDS[p.id]) ? TEXTOS_KIDS[p.id] : null;
+        const ementa    = p.ementa || '';
+        const data      = p.dataApresentacao ? new Date(p.dataApresentacao).toLocaleDateString('pt-BR') : '–';
+        const titulo    = `${p.siglaTipo} nº ${p.numero}/${p.ano}`;
+        const tituloTxt = `${p.siglaTipo} nº ${p.numero}/${p.ano}`;
+
+        switch (n) {
+            case 0: {
+                const imgUrl = unsplashUrl(ementa);
+                return `<div class="flex flex-col h-full" style="background:#1f2937">
+                    <div style="height:338px;flex-shrink:0;overflow:hidden;background:linear-gradient(135deg,#374151,#1f2937)">
+                        <img src="${imgUrl}" alt="" class="w-full h-full object-cover" loading="lazy"
+                             onerror="this.style.opacity='0'" style="transition:opacity .3s" />
+                    </div>
+                    <div class="flex-1 px-6 py-5 flex flex-col justify-center" style="background:rgba(0,0,0,.82)">
+                        <p class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">${p.siglaTipo} ${p.numero} · ${p.ano}</p>
+                        <h2 class="text-white font-black text-xl leading-snug">${titulo}</h2>
+                        <p class="text-gray-500 text-xs mt-1">Apresentado em ${data}</p>
+                    </div>
+                </div>`;
+            }
+            case 1: {
+                const ementaExib = textoKids ? textoKids
+                    : (ementa.length > 360 ? ementa.slice(0, 360) + '…' : ementa);
+                const badgeKids = textoKids
+                    ? `<span class="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 mb-3 inline-block">🧒 Modo Kids</span><br>`
+                    : '';
+                return `<div class="flex flex-col h-full bg-white px-6 pb-5 pt-14">
+                    <p class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-3">Entenda em 1 minuto</p>
+                    <div class="flex-1 overflow-y-auto text-gray-700 text-sm leading-relaxed">${badgeKids}${ementaExib}</div>
+                    <a href="https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${p.id}"
+                       target="_blank" rel="noopener"
+                       class="text-blue-500 text-xs underline mt-3 block pt-2 border-t border-gray-100">
+                        🔗 Ver tramitação completa na Câmara
+                    </a>
+                </div>`;
+            }
+            case 2: {
+                const pts = gerarPositivos(ementa);
+                return `<div class="flex flex-col h-full px-6 pb-5 pt-14" style="background:#f0fdf4">
+                    <p class="font-black text-lg mb-5" style="color:#14532d">O que pode melhorar</p>
+                    <div class="flex flex-col gap-4 flex-1">
+                        ${pts.map(pt => `<div class="flex items-start gap-3"><span class="text-xl mt-0.5 shrink-0">✅</span><p class="text-sm leading-relaxed" style="color:#166534">${pt}</p></div>`).join('')}
+                    </div>
+                </div>`;
+            }
+            case 3: {
+                const pts = gerarNegativos(ementa);
+                return `<div class="flex flex-col h-full px-6 pb-5 pt-14" style="background:#fff1f2">
+                    <p class="font-black text-lg mb-5" style="color:#7f1d1d">Pontos de atenção</p>
+                    <div class="flex flex-col gap-4 flex-1">
+                        ${pts.map(pt => `<div class="flex items-start gap-3"><span class="text-xl mt-0.5 shrink-0">⚠️</span><p class="text-sm leading-relaxed" style="color:#991b1b">${pt}</p></div>`).join('')}
+                    </div>
+                </div>`;
+            }
+            case 4: {
+                const bVeto = 'bg-red-600 hover:bg-red-500 active:scale-90 transition p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl' + (ouroAtivado ? ' btn-pulse' : '');
+                const bVoto = 'bg-green-600 hover:bg-green-500 active:scale-90 transition p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl' + (ouroAtivado ? ' btn-pulse' : '');
+                const bOuro = 'bg-yellow-400 hover:bg-yellow-300 active:scale-90 transition p-4 rounded-full w-20 h-20 flex items-center justify-center shadow-lg border-4 border-yellow-200 text-3xl' + (ouroAtivado ? ' opacity-50' : '');
+                const goldHint = ouroAtivado
+                    ? `<div class="rounded-2xl px-4 py-2.5 text-center mb-3" style="background:rgba(120,80,0,.35);border:1px solid #d97706"><p class="text-yellow-300 text-sm font-bold">🪙 Inegociável ativado! Escolha ✔️ ou ✖️</p></div>`
+                    : `<div class="rounded-2xl px-4 py-2.5 text-center mb-3 bg-gray-700"><p class="text-gray-400 text-xs">💡 Use 🪙 antes de votar para marcar como inegociável</p></div>`;
+                return `<div class="flex flex-col h-full bg-gray-800 px-6 pb-6 pt-14">
+                    <div class="text-center mb-2">
+                        <p class="text-gray-400 text-xs uppercase tracking-widest mb-1">Como você decide?</p>
+                        <p class="text-white font-bold text-sm">${tituloTxt}</p>
+                    </div>
+                    ${goldHint}
+                    <div class="flex-1 flex items-center justify-center">
+                        <div class="flex gap-4 items-end">
+                            <div class="flex flex-col items-center gap-2">
+                                <button id="btn-veto" onclick="acionar('veto')" class="${bVeto}" title="Vetar">✖️</button>
+                                <span class="text-gray-400 text-xs font-bold">Vetar</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2">
+                                <button id="btn-ouro" onclick="acionar('ouro')" class="${bOuro}" title="Moeda de Ouro">🪙</button>
+                                <span class="text-gray-400 text-xs font-bold">Inegociável</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2">
+                                <button id="btn-voto" onclick="acionar('voto')" class="${bVoto}" title="Votar">✔️</button>
+                                <span class="text-gray-400 text-xs font-bold">Votar</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2">
+                                <button id="btn-abstencao" onclick="abster()" class="bg-gray-600 hover:bg-gray-500 active:scale-90 transition p-3 rounded-full w-12 h-12 flex items-center justify-center shadow-lg text-xl" title="Depois">⏭️</button>
+                                <span class="text-gray-400 text-xs font-bold">Depois</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+        }
+        return '';
+    }
+
+    function renderizarSubCard() {
+        const p = proposicoes[idx];
+
+        const dots = document.getElementById('sub-dots');
+        if (dots) {
+            dots.innerHTML = Array.from({length: 5}, (_, i) =>
+                `<div class="w-2 h-2 rounded-full transition-all" style="background:${i === _cardIdx ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.3)'}"></div>`
+            ).join('');
+        }
+
+        const prev = document.getElementById('sub-prev');
+        const next = document.getElementById('sub-next');
+        if (prev) prev.style.visibility = _cardIdx === 0 ? 'hidden' : '';
+        if (next) next.style.visibility = _cardIdx === 4 ? 'hidden' : '';
+
+        const content = document.getElementById('sub-card-content');
+        if (content) content.innerHTML = htmlSubCard(_cardIdx, p);
+    }
+
+    function navegarSubCard(dir) {
+        const novo = _cardIdx + dir;
+        if (novo < 0 || novo > 4) return;
+        _cardIdx = novo;
+        renderizarSubCard();
+    }
+
     // ── RENDERIZAR CARD ──────────────────────────────────────────────────────
     function renderizarCard() {
         const container = document.getElementById('card-container');
@@ -515,64 +698,23 @@
             return;
         }
 
-        const p        = proposicoes[idx];
-        const kids     = modoKids();
-        const isCurada = LISTA_CURADA.includes(Number(p.id));
-        const textoKids = (kids && isCurada && TEXTOS_KIDS[p.id]) ? TEXTOS_KIDS[p.id] : null;
-
-        const data       = p.dataApresentacao
-            ? new Date(p.dataApresentacao).toLocaleDateString('pt-BR') : '–';
-        const ementa     = textoKids || p.ementa || 'Sem descrição disponível.';
-        const ementaExib = textoKids ? ementa : (ementa.length > 230 ? ementa.slice(0, 230) + '…' : ementa);
-
-        const cores = {
-            PL:  'bg-blue-100 text-blue-800',
-            PEC: 'bg-yellow-100 text-yellow-800',
-            MPV: 'bg-pink-100 text-pink-800',
-            PDL: 'bg-green-100 text-green-800'
-        };
-        const cor       = cores[p.siglaTipo] || 'bg-gray-100 text-gray-800';
-        const badgeKids = textoKids
-            ? `<div class="mb-2"><span class="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">🧒 Modo Kids</span></div>`
-            : '';
+        _cardIdx = 0;
 
         container.innerHTML = `
-        <div id="main-card"
-             class="card bg-white text-gray-900 rounded-3xl shadow-2xl flex flex-col justify-between"
-             style="height:490px;padding:1.4rem;">
-
-            <div>
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-xs font-bold px-2.5 py-1 rounded-full ${cor}">
-                        ${p.siglaTipo} ${p.numero}/${p.ano}
-                    </span>
-                    <span class="text-gray-400 text-xs">${data}</span>
-                </div>
-                ${badgeKids}
-                <h2 class="text-xl font-black leading-snug mb-3 text-gray-900">
-                    ${p.siglaTipo} nº&nbsp;${p.numero} de ${p.ano}
-                </h2>
-                <hr class="mb-3 border-gray-200">
-                <p class="text-gray-700 text-sm leading-relaxed">${ementaExib}</p>
-            </div>
-
-            <div>
-                <a href="https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${p.id}"
-                   target="_blank"
-                   class="text-blue-500 text-xs underline block mb-3">
-                   🔗 Ver tramitação completa na Câmara
-                </a>
-                <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-2xl">
-                    <p class="text-xs font-bold text-yellow-700 mb-0.5">💡 DICA</p>
-                    <p class="text-xs text-yellow-800">
-                        Use 🪙 se este projeto for um ponto <strong>inegociável</strong> para você —
-                        depois confirme com ✔️ ou ✖️.
-                    </p>
-                </div>
-            </div>
+        <div id="main-card" class="card relative rounded-3xl shadow-2xl overflow-hidden" style="height:520px;">
+            <button onclick="navegarSubCard(-1)" id="sub-prev"
+                class="absolute top-3 left-3 z-20 w-8 h-8 rounded-full flex items-center justify-center text-white text-xl font-bold transition"
+                style="background:rgba(0,0,0,.4);">‹</button>
+            <div id="sub-dots" class="absolute z-20 flex gap-1.5"
+                 style="top:14px;left:50%;transform:translateX(-50%);"></div>
+            <button onclick="navegarSubCard(1)" id="sub-next"
+                class="absolute top-3 right-3 z-20 w-8 h-8 rounded-full flex items-center justify-center text-white text-xl font-bold transition"
+                style="background:rgba(0,0,0,.4);">›</button>
+            <div id="sub-card-content" class="w-full h-full"></div>
         </div>`;
 
         if (ouroAtivado) document.getElementById('main-card').classList.add('gold-glow');
+        renderizarSubCard();
     }
 
     function mostrarSkeleton() {
@@ -672,25 +814,24 @@
     }
 
     function ativarOuro() {
-        if (ouroAtivado) { desativarOuro(); return; }
+        if (ouroAtivado) {
+            ouroAtivado = false;
+            const card = document.getElementById('main-card');
+            if (card) card.classList.remove('gold-glow');
+            if (_cardIdx === 4) renderizarSubCard();
+            return;
+        }
         ouroAtivado = true;
-
         const card = document.getElementById('main-card');
         if (card) card.classList.add('gold-glow');
-
-        document.getElementById('gold-banner').classList.remove('hidden');
         document.getElementById('feedback').innerText = '';
-        document.getElementById('btn-voto').classList.add('btn-pulse');
-        document.getElementById('btn-veto').classList.add('btn-pulse');
-        document.getElementById('btn-ouro').classList.add('opacity-50');
+        if (_cardIdx === 4) renderizarSubCard();
     }
 
     function desativarOuro() {
         ouroAtivado = false;
-        document.getElementById('gold-banner').classList.add('hidden');
-        document.getElementById('btn-voto').classList.remove('btn-pulse');
-        document.getElementById('btn-veto').classList.remove('btn-pulse');
-        document.getElementById('btn-ouro').classList.remove('opacity-50');
+        const card = document.getElementById('main-card');
+        if (card) card.classList.remove('gold-glow');
     }
 
     // ── STATUS ───────────────────────────────────────────────────────────────
