@@ -3,107 +3,242 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voto & Veto - Protótipo</title>
+    <title>Voto & Veto</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .card { transition: transform 0.3s, opacity 0.3s; }
-        .swipe-left { transform: translateX(-150%) rotate(-20deg); opacity: 0; }
-        .swipe-right { transform: translateX(150%) rotate(20deg); opacity: 0; }
-        .gold-glow { box-shadow: 0 0 20px #ffd700; border: 2px solid #ffd700; }
+        .card { transition: transform 0.35s ease, opacity 0.35s ease; }
+        .swipe-left  { transform: translateX(-160%) rotate(-22deg); opacity: 0; }
+        .swipe-right { transform: translateX(160%)  rotate(22deg);  opacity: 0; }
+        .gold-glow   { box-shadow: 0 0 24px #ffd700; border: 2px solid #ffd700; }
+        .skeleton { animation: pulse 1.4s infinite; background: #e5e7eb; border-radius: 6px; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
     </style>
 </head>
-<body class="bg-gray-900 flex flex-col items-center justify-center min-h-screen font-sans p-4 text-white">
+<body class="bg-gray-900 flex flex-col items-center justify-center min-h-screen font-sans p-4 text-white select-none">
 
-    <!-- Cabeçalho -->
-    <div class="mb-6 text-center">
-        <h1 class="text-2xl font-bold text-yellow-500">Voto & Veto</h1>
-        <p class="text-gray-400 text-sm">Protótipo de Interface</p>
+    <div class="mb-5 text-center">
+        <h1 class="text-2xl font-black text-yellow-400 tracking-wide">Voto & Veto</h1>
+        <p id="status-text" class="text-gray-400 text-xs mt-1">Carregando projetos de lei...</p>
     </div>
 
-    <!-- Área do Card -->
-    <div id="card-container" class="relative w-full max-w-sm h-[500px]">
-        <!-- O Card será inserido aqui via JavaScript -->
+    <div id="card-container" class="relative w-full max-w-sm" style="height:490px;"></div>
+
+    <div class="flex gap-6 mt-6 items-center">
+        <button onclick="votar('veto')"
+            class="bg-red-600 hover:bg-red-500 active:scale-90 transition p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl"
+            title="Vetar">✖️</button>
+        <button onclick="votar('super')"
+            class="bg-yellow-400 hover:bg-yellow-300 active:scale-90 transition p-4 rounded-full w-20 h-20 flex items-center justify-center shadow-lg border-4 border-yellow-200 text-3xl"
+            title="Moeda de Ouro">🪙</button>
+        <button onclick="votar('voto')"
+            class="bg-green-600 hover:bg-green-500 active:scale-90 transition p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl"
+            title="Votar a favor">✔️</button>
     </div>
 
-    <!-- Barra de Decisão -->
-    <div class="flex gap-6 mt-8">
-        <button onclick="votar('veto')" class="bg-red-600 p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg active:scale-90 transition">
-            ✖️
-        </button>
-        <button onclick="votar('super')" class="bg-yellow-500 p-4 rounded-full w-20 h-20 flex items-center justify-center shadow-lg active:scale-90 transition border-4 border-yellow-300">
-            🪙
-        </button>
-        <button onclick="votar('voto')" class="bg-green-600 p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg active:scale-90 transition">
-            ✔️
-        </button>
-    </div>
-
-    <p id="feedback" class="mt-6 text-yellow-400 font-bold"></p>
+    <p id="feedback" class="mt-5 text-yellow-300 font-bold text-lg h-6"></p>
+    <p id="contador" class="text-gray-500 text-xs mt-2"></p>
 
     <script>
-        const leis = [
-            { id: 1, titulo: "Escala 6x1", resumo: "Fim da jornada de 6 dias de trabalho para 1 de folga.", autor: "Erika Hilton" },
-            { id: 2, titulo: "Isenção IR 5k", resumo: "Ninguém que ganha até R$ 5.000 paga imposto de renda.", autor: "Executivo" },
-            { id: 3, titulo: "PEC Blindagem", resumo: "Dificulta busca e apreensão contra parlamentares.", autor: "Congresso" }
-        ];
+    // ── CONFIGURAÇÃO ────────────────────────────────────────────────────────
+    const API_DIRETA = 'https://dadosabertos.camara.leg.br/api/v2';
+    const PROXY      = 'https://corsproxy.io/?';
+    const TIPOS      = ['PL','PEC','MPV'];
+    const ITENS      = 15;
 
-        let index = 0;
+    let proposicoes = [];
+    let index       = 0;
+    let pagina      = 1;
+    let carregando  = false;
 
-        function carregarCard() {
-            const container = document.getElementById('card-container');
-            if (index >= leis.length) {
-                container.innerHTML = `<div class="bg-gray-800 p-8 rounded-3xl h-full flex flex-col items-center justify-center text-center">
-                    <h2 class="text-2xl mb-4">Fim dos Cards!</h2>
-                    <button onclick="location.reload()" class="bg-blue-600 px-4 py-2 rounded">Reiniciar</button>
-                </div>`;
-                return;
+    // ── LOCALSTORAGE ────────────────────────────────────────────────────────
+    function salvarVoto(prop, tipo) {
+        const h = JSON.parse(localStorage.getItem('vv_historico') || '[]');
+        h.push({ id: prop.id, titulo: `${prop.siglaTipo} ${prop.numero}/${prop.ano}`,
+                 ementa: prop.ementa, voto: tipo, data: new Date().toISOString() });
+        localStorage.setItem('vv_historico', JSON.stringify(h));
+
+        const r = JSON.parse(localStorage.getItem('vv_ranking') || '{}');
+        const k = String(prop.id);
+        if (!r[k]) r[k] = { titulo:`${prop.siglaTipo} ${prop.numero}/${prop.ano}`,
+                             ementa:prop.ementa, votos:0, vetos:0, ouro:0 };
+        if (tipo==='voto')  r[k].votos++;
+        if (tipo==='veto')  r[k].vetos++;
+        if (tipo==='super') r[k].ouro++;
+        localStorage.setItem('vv_ranking', JSON.stringify(r));
+    }
+
+    // ── FETCH COM FALLBACK ──────────────────────────────────────────────────
+    async function fetchComFallback(path) {
+        const urlDireta = `${API_DIRETA}${path}`;
+
+        // Tenta direto primeiro
+        try {
+            const r = await fetch(urlDireta, { signal: AbortSignal.timeout(6000) });
+            if (r.ok) return await r.json();
+        } catch(_) {}
+
+        // Fallback: usa proxy CORS
+        try {
+            const r = await fetch(PROXY + encodeURIComponent(urlDireta),
+                                  { signal: AbortSignal.timeout(8000) });
+            if (r.ok) {
+                const txt = await r.text();
+                // allorigins encapsula em {contents:...}, corsproxy.io retorna direto
+                try { return JSON.parse(txt); } catch(_) {
+                    const obj = JSON.parse(txt);
+                    return JSON.parse(obj.contents);
+                }
+            }
+        } catch(_) {}
+
+        throw new Error('Falha nas duas tentativas');
+    }
+
+    // ── CARREGAR PROPOSIÇÕES ────────────────────────────────────────────────
+    async function carregarProposicoes() {
+        if (carregando) return;
+        carregando = true;
+        mostrarSkeleton();
+
+        try {
+            const tipo = TIPOS[Math.floor(Math.random() * TIPOS.length)];
+            const path = `/proposicoes?siglaTipo=${tipo}&itens=${ITENS}&pagina=${pagina}&ordem=DESC&ordenarPor=id`;
+            const json = await fetchComFallback(path);
+
+            if (!json.dados || json.dados.length === 0) {
+                pagina = 1; carregando = false;
+                return carregarProposicoes();
             }
 
-            const lei = leis[index];
-            container.innerHTML = `
-                <div id="main-card" class="card bg-white text-gray-900 p-6 rounded-3xl h-full shadow-2xl flex flex-col justify-between">
-                    <div>
-                        <div class="flex justify-between items-center mb-4">
-                            <span class="bg-yellow-100 text-yellow-800 text-xs font-bold px-2.5 py-0.5 rounded">PROJETO ${index + 1}</span>
-                            <span class="text-gray-400 text-xs">Deslize para ver mais</span>
-                        </div>
-                        <h2 class="text-3xl font-black mb-2">${lei.titulo}</h2>
-                        <p class="text-gray-600 text-sm mb-4">Autor: ${lei.autor}</p>
-                        <hr class="mb-4">
-                        <p class="text-lg leading-relaxed">${lei.resumo}</p>
-                    </div>
-                    <div class="bg-gray-100 p-4 rounded-2xl">
-                        <p class="text-xs font-bold text-gray-500 mb-1 italic">DICA:</p>
-                        <p class="text-sm">Use a Moeda de Ouro se este for um ponto inegociável para você.</p>
-                    </div>
+            proposicoes = json.dados;
+            index = 0;
+            pagina++;
+            atualizarStatus();
+            carregarCard();
+        } catch(e) {
+            mostrarErro();
+        }
+        carregando = false;
+    }
+
+    // ── RENDERIZAR CARD ─────────────────────────────────────────────────────
+    function carregarCard() {
+        const container = document.getElementById('card-container');
+        if (index >= proposicoes.length) { carregarProposicoes(); return; }
+
+        const p = proposicoes[index];
+        const data = p.dataApresentacao
+            ? new Date(p.dataApresentacao).toLocaleDateString('pt-BR') : '–';
+        const ementa = (p.ementa || 'Sem descrição disponível.');
+        const ementaExib = ementa.length > 230 ? ementa.slice(0,230)+'…' : ementa;
+
+        const cores = { PL:'bg-blue-100 text-blue-800', PEC:'bg-yellow-100 text-yellow-800',
+                        MPV:'bg-pink-100 text-pink-800', PDL:'bg-green-100 text-green-800' };
+        const cor = cores[p.siglaTipo] || 'bg-gray-100 text-gray-800';
+
+        container.innerHTML = `
+        <div id="main-card"
+             class="card bg-white text-gray-900 rounded-3xl shadow-2xl flex flex-col justify-between"
+             style="height:490px;padding:1.4rem;">
+
+            <div>
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-xs font-bold px-2.5 py-1 rounded-full ${cor}">
+                        ${p.siglaTipo} ${p.numero}/${p.ano}
+                    </span>
+                    <span class="text-gray-400 text-xs">${data}</span>
                 </div>
-            `;
+
+                <h2 class="text-xl font-black leading-snug mb-3 text-gray-900">
+                    ${p.siglaTipo} nº&nbsp;${p.numero} de ${p.ano}
+                </h2>
+
+                <hr class="mb-3 border-gray-200">
+
+                <p class="text-gray-700 text-sm leading-relaxed">${ementaExib}</p>
+            </div>
+
+            <div>
+                <a href="https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${p.id}"
+                   target="_blank"
+                   class="text-blue-500 text-xs underline block mb-3">
+                   🔗 Ver tramitação completa na Câmara
+                </a>
+                <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-2xl">
+                    <p class="text-xs font-bold text-yellow-700 mb-0.5">💡 DICA</p>
+                    <p class="text-xs text-yellow-800">Use a Moeda de Ouro 🪙 se este projeto for um ponto inegociável para você.</p>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function mostrarSkeleton() {
+        document.getElementById('card-container').innerHTML = `
+            <div class="bg-white rounded-3xl shadow-2xl flex flex-col gap-3 p-6" style="height:490px;">
+                <div class="skeleton h-5 w-2/5"></div>
+                <div class="skeleton h-8 w-4/5 mt-2"></div>
+                <div class="skeleton h-4 w-full mt-4"></div>
+                <div class="skeleton h-4 w-full"></div>
+                <div class="skeleton h-4 w-3/4"></div>
+                <div class="skeleton h-4 w-full"></div>
+                <div class="skeleton h-4 w-5/6"></div>
+                <div class="mt-auto skeleton h-16 w-full rounded-2xl"></div>
+            </div>`;
+        document.getElementById('status-text').innerText = 'Buscando projetos de lei...';
+    }
+
+    function mostrarErro() {
+        document.getElementById('card-container').innerHTML = `
+            <div class="bg-white rounded-3xl shadow-2xl flex flex-col items-center justify-center gap-4 p-8 text-center" style="height:490px;">
+                <span class="text-4xl">⚠️</span>
+                <h2 class="text-gray-800 font-bold text-lg">Não foi possível conectar à API da Câmara</h2>
+                <p class="text-gray-500 text-sm">Verifique sua conexão e tente novamente.</p>
+                <button onclick="carregarProposicoes()"
+                    class="bg-blue-600 text-white px-6 py-2 rounded-full text-sm font-bold">
+                    Tentar novamente
+                </button>
+            </div>`;
+    }
+
+    // ── VOTAR ───────────────────────────────────────────────────────────────
+    function votar(tipo) {
+        const card     = document.getElementById('main-card');
+        const feedback = document.getElementById('feedback');
+        if (!card) return;
+
+        const prop = proposicoes[index];
+
+        if (tipo === 'voto') {
+            card.classList.add('swipe-right');
+            feedback.innerText = '✅ Você VOTOU A FAVOR!';
+        } else if (tipo === 'veto') {
+            card.classList.add('swipe-left');
+            feedback.innerText = '❌ Você VETOU!';
+        } else {
+            card.classList.add('gold-glow');
+            feedback.innerText = '🪙 MOEDA DE OURO ATIVADA!';
+            setTimeout(() => card.classList.add('swipe-right'), 500);
         }
 
-        function votar(tipo) {
-            const card = document.getElementById('main-card');
-            const feedback = document.getElementById('feedback');
-            
-            if (tipo === 'voto') {
-                card.classList.add('swipe-right');
-                feedback.innerText = "Você VOTOU SIM!";
-            } else if (tipo === 'veto') {
-                card.classList.add('swipe-left');
-                feedback.innerText = "Você VETOU!";
-            } else {
-                card.classList.add('gold-glow');
-                feedback.innerText = "MOEDA DE OURO ATIVADA!";
-                setTimeout(() => card.classList.add('swipe-right'), 500);
-            }
+        salvarVoto(prop, tipo);
 
-            setTimeout(() => {
-                index++;
-                feedback.innerText = "";
-                carregarCard();
-            }, 600);
-        }
+        setTimeout(() => {
+            index++;
+            feedback.innerText = '';
+            atualizarStatus();
+            carregarCard();
+        }, tipo === 'super' ? 900 : 500);
+    }
 
-        carregarCard();
+    function atualizarStatus() {
+        document.getElementById('status-text').innerText =
+            'Projetos de lei reais da Câmara dos Deputados';
+        document.getElementById('contador').innerText =
+            `${index + 1} de ${proposicoes.length} neste lote`;
+    }
+
+    // ── INIT ────────────────────────────────────────────────────────────────
+    carregarProposicoes();
     </script>
 </body>
 </html>
