@@ -11,77 +11,123 @@
         .swipe-right { transform: translateX(160%)  rotate(22deg);  opacity: 0; }
         .gold-glow   { box-shadow: 0 0 28px #ffd700; border: 3px solid #ffd700 !important; }
         .fade-out    { transition: opacity 0.35s ease; opacity: 0; }
-        .skeleton { animation: pulse 1.4s infinite; background: #e5e7eb; border-radius: 6px; }
+        .skeleton    { animation: pulse 1.4s infinite; background: #e5e7eb; border-radius: 6px; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-        .btn-pulse { animation: btn-pop 0.6s ease infinite alternate; }
+        .btn-pulse   { animation: btn-pop 0.6s ease infinite alternate; }
         @keyframes btn-pop { from{transform:scale(1)} to{transform:scale(1.12)} }
     </style>
 </head>
-<body class="bg-gray-900 flex flex-col items-center justify-center min-h-screen font-sans p-4 text-white select-none">
+<body class="bg-gray-900 font-sans text-white select-none">
 
-    <div class="mb-5 text-center">
-        <h1 class="text-2xl font-black text-yellow-400 tracking-wide">Voto & Veto</h1>
-        <p id="status-text" class="text-gray-400 text-xs mt-1">Carregando projetos de lei...</p>
-    </div>
+    <!-- ── BOTÃO FLUTUANTE RANKING ──────────────────────────────────────── -->
+    <button onclick="abrirRanking()"
+        class="fixed top-4 right-4 z-50 bg-yellow-400 hover:bg-yellow-300 active:scale-90 transition w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-2xl"
+        title="Ver ranking">🏆</button>
 
-    <div id="card-container" class="relative w-full max-w-sm" style="height:490px;"></div>
+    <!-- ── TELA PRINCIPAL ────────────────────────────────────────────────── -->
+    <div id="tela-principal" class="flex flex-col items-center justify-center min-h-screen p-4">
 
-    <!-- Banner de Moeda de Ouro ativada -->
-    <div id="gold-banner" class="hidden mt-4 bg-yellow-400 text-yellow-900 font-bold text-sm px-5 py-2 rounded-full shadow-lg text-center">
-        🪙 Moeda de Ouro ativada — agora escolha ✔️ ou ✖️
-    </div>
+        <div class="mb-5 text-center">
+            <h1 class="text-2xl font-black text-yellow-400 tracking-wide">Voto & Veto</h1>
+            <p id="status-text" class="text-gray-400 text-xs mt-1">Carregando projetos de lei...</p>
+        </div>
 
-    <div class="flex gap-6 mt-4 items-center">
-        <button id="btn-veto" onclick="acionar('veto')"
-            class="bg-red-600 hover:bg-red-500 active:scale-90 transition p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl"
-            title="Vetar">✖️</button>
+        <div id="card-container" class="relative w-full max-w-sm" style="height:490px;"></div>
 
-        <button id="btn-ouro" onclick="acionar('ouro')"
-            class="bg-yellow-400 hover:bg-yellow-300 active:scale-90 transition p-4 rounded-full w-20 h-20 flex items-center justify-center shadow-lg border-4 border-yellow-200 text-3xl"
-            title="Moeda de Ouro">🪙</button>
+        <!-- Banner de Moeda de Ouro ativada -->
+        <div id="gold-banner" class="hidden mt-4 bg-yellow-400 text-yellow-900 font-bold text-sm px-5 py-2 rounded-full shadow-lg text-center">
+            🪙 Moeda de Ouro ativada — agora escolha ✔️ ou ✖️
+        </div>
 
-        <button id="btn-abstencao" onclick="abster()"
-            class="bg-gray-600 hover:bg-gray-500 active:scale-90 transition p-3 rounded-full w-12 h-12 flex items-center justify-center shadow-lg text-xl"
-            title="Abster — decidir depois">⏭️</button>
+        <div class="flex gap-6 mt-4 items-center">
+            <button id="btn-veto" onclick="acionar('veto')"
+                class="bg-red-600 hover:bg-red-500 active:scale-90 transition p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl"
+                title="Vetar">✖️</button>
 
-        <button id="btn-voto" onclick="acionar('voto')"
-            class="bg-green-600 hover:bg-green-500 active:scale-90 transition p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl"
-            title="Votar a favor">✔️</button>
-    </div>
+            <button id="btn-ouro" onclick="acionar('ouro')"
+                class="bg-yellow-400 hover:bg-yellow-300 active:scale-90 transition p-4 rounded-full w-20 h-20 flex items-center justify-center shadow-lg border-4 border-yellow-200 text-3xl"
+                title="Moeda de Ouro">🪙</button>
 
-    <p id="feedback" class="mt-5 text-yellow-300 font-bold text-lg h-6 text-center"></p>
-    <p id="contador" class="text-gray-500 text-xs mt-2"></p>
+            <button id="btn-abstencao" onclick="abster()"
+                class="bg-gray-600 hover:bg-gray-500 active:scale-90 transition p-3 rounded-full w-12 h-12 flex items-center justify-center shadow-lg text-xl"
+                title="Abster — decidir depois">⏭️</button>
+
+            <button id="btn-voto" onclick="acionar('voto')"
+                class="bg-green-600 hover:bg-green-500 active:scale-90 transition p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl"
+                title="Votar a favor">✔️</button>
+        </div>
+
+        <p id="feedback" class="mt-5 text-yellow-300 font-bold text-lg h-6 text-center"></p>
+        <p id="contador" class="text-gray-500 text-xs mt-2"></p>
+
+    </div><!-- /tela-principal -->
+
+    <!-- ── TELA RANKING ──────────────────────────────────────────────────── -->
+    <div id="tela-ranking" class="hidden flex-col min-h-screen p-4 w-full max-w-lg mx-auto">
+
+        <!-- Cabeçalho -->
+        <div class="flex items-center gap-3 pt-4 pb-5">
+            <button onclick="fecharRanking()"
+                class="bg-gray-700 hover:bg-gray-600 active:scale-90 transition px-4 py-2 rounded-full text-sm font-bold flex items-center gap-1">
+                ← Voltar
+            </button>
+            <h2 class="text-xl font-black text-yellow-400">🏆 Meu Histórico</h2>
+        </div>
+
+        <!-- Lista de leis votadas -->
+        <div id="ranking-lista" class="flex flex-col gap-4 pb-8"></div>
+
+    </div><!-- /tela-ranking -->
 
     <script>
     // ── CONFIGURAÇÃO ────────────────────────────────────────────────────────
-    const API_DIRETA  = 'https://dadosabertos.camara.leg.br/api/v2';
-    const PROXY       = 'https://corsproxy.io/?';
-    const TIPOS       = ['PL', 'PEC', 'MPV'];
-    const ITENS       = 15;
+    const API_DIRETA   = 'https://dadosabertos.camara.leg.br/api/v2';
+    const PROXY        = 'https://corsproxy.io/?';
+    const TIPOS        = ['PL', 'PEC', 'MPV'];
+    const ITENS        = 15;
     const LISTA_CURADA = [2485341, 2487436];
 
-    let proposicoes   = [];
-    let idx           = 0;
-    let pagina        = 1;
-    let carregando    = false;
-    let ouroAtivado   = false;
+    let proposicoes  = [];
+    let idx          = 0;
+    let pagina       = 1;
+    let carregando   = false;
+    let ouroAtivado  = false;
 
-    // ── LOCALSTORAGE ────────────────────────────────────────────────────────
-    // Categorias: voto | veto | inegociavel_voto | inegociavel_veto
+    // ── LOCALSTORAGE ─────────────────────────────────────────────────────────
+    // vv_votos   : { [id]: { titulo, ementa, categoria, data } }   — último voto por lei
+    // vv_ranking : { [id]: { titulo, ementa, voto, veto, inegociavel_voto,
+    //                        inegociavel_veto, abstencao } }        — contagens acumuladas
     function salvarVoto(prop, categoria) {
-        const chave = 'vv_votos';
-        const dados = JSON.parse(localStorage.getItem(chave) || '{}');
-        const id    = String(prop.id);
-        dados[id] = {
+        const id = String(prop.id);
+
+        // Registro individual (última decisão)
+        const votos = JSON.parse(localStorage.getItem('vv_votos') || '{}');
+        votos[id] = {
             titulo:    `${prop.siglaTipo} ${prop.numero}/${prop.ano}`,
             ementa:    prop.ementa || '',
-            categoria: categoria,
+            categoria,
             data:      new Date().toISOString()
         };
-        localStorage.setItem(chave, JSON.stringify(dados));
+        localStorage.setItem('vv_votos', JSON.stringify(votos));
+
+        // Contagens para o ranking
+        const ranking = JSON.parse(localStorage.getItem('vv_ranking') || '{}');
+        if (!ranking[id]) {
+            ranking[id] = {
+                titulo:           `${prop.siglaTipo} ${prop.numero}/${prop.ano}`,
+                ementa:           prop.ementa || '',
+                voto:             0,
+                veto:             0,
+                inegociavel_voto: 0,
+                inegociavel_veto: 0,
+                abstencao:        0
+            };
+        }
+        ranking[id][categoria] = (ranking[id][categoria] || 0) + 1;
+        localStorage.setItem('vv_ranking', JSON.stringify(ranking));
     }
 
-    // ── FETCH COM FALLBACK CORS ─────────────────────────────────────────────
+    // ── FETCH COM FALLBACK CORS ──────────────────────────────────────────────
     async function fetchComFallback(path) {
         const url = `${API_DIRETA}${path}`;
         try {
@@ -89,7 +135,6 @@
             if (r.ok) return await r.json();
         } catch (_) {}
 
-        // Fallback: proxy CORS
         const r = await fetch(PROXY + encodeURIComponent(url),
                               { signal: AbortSignal.timeout(8000) });
         if (!r.ok) throw new Error('proxy falhou');
@@ -98,7 +143,7 @@
         catch (_) { return JSON.parse(JSON.parse(txt).contents); }
     }
 
-    // ── LISTA CURADA ────────────────────────────────────────────────────────
+    // ── LISTA CURADA ─────────────────────────────────────────────────────────
     async function carregarCuradas() {
         const resultado = [];
         for (const id of LISTA_CURADA) {
@@ -110,7 +155,7 @@
         return resultado;
     }
 
-    // ── CARREGAR PROPOSIÇÕES ────────────────────────────────────────────────
+    // ── CARREGAR PROPOSIÇÕES ─────────────────────────────────────────────────
     async function carregarProposicoes() {
         if (carregando) return;
         carregando = true;
@@ -138,13 +183,13 @@
         carregando = false;
     }
 
-    // ── RENDERIZAR CARD ─────────────────────────────────────────────────────
+    // ── RENDERIZAR CARD ──────────────────────────────────────────────────────
     function renderizarCard() {
         const container = document.getElementById('card-container');
         if (idx >= proposicoes.length) { carregarProposicoes(); return; }
 
-        const p      = proposicoes[idx];
-        const data   = p.dataApresentacao
+        const p          = proposicoes[idx];
+        const data       = p.dataApresentacao
             ? new Date(p.dataApresentacao).toLocaleDateString('pt-BR') : '–';
         const ementa     = p.ementa || 'Sem descrição disponível.';
         const ementaExib = ementa.length > 230 ? ementa.slice(0, 230) + '…' : ementa;
@@ -169,13 +214,10 @@
                     </span>
                     <span class="text-gray-400 text-xs">${data}</span>
                 </div>
-
                 <h2 class="text-xl font-black leading-snug mb-3 text-gray-900">
                     ${p.siglaTipo} nº&nbsp;${p.numero} de ${p.ano}
                 </h2>
-
                 <hr class="mb-3 border-gray-200">
-
                 <p class="text-gray-700 text-sm leading-relaxed">${ementaExib}</p>
             </div>
 
@@ -195,10 +237,7 @@
             </div>
         </div>`;
 
-        // Aplica glow se moeda já estava ativa ao trocar de card (não deve, mas por segurança)
-        if (ouroAtivado) {
-            document.getElementById('main-card').classList.add('gold-glow');
-        }
+        if (ouroAtivado) document.getElementById('main-card').classList.add('gold-glow');
     }
 
     function mostrarSkeleton() {
@@ -229,33 +268,25 @@
             </div>`;
     }
 
-    // ── MECÂNICA DA MOEDA DE OURO ──────────────────────────────────────────
-    // Fluxo: [🪙] ativa modificador → usuário escolhe [✔️] ou [✖️]
-    // Resultado: inegociavel_voto  ou  inegociavel_veto
-    // Sem moeda:  voto  ou  veto
-
+    // ── MECÂNICA DA MOEDA DE OURO ────────────────────────────────────────────
     function acionar(botao) {
-        if (botao === 'ouro') {
-            ativarOuro();
-            return;
-        }
+        if (botao === 'ouro') { ativarOuro(); return; }
 
-        const card = document.getElementById('main-card');
+        const card     = document.getElementById('main-card');
+        const feedback = document.getElementById('feedback');
         if (!card) return;
 
-        const prop      = proposicoes[idx];
-        const feedback  = document.getElementById('feedback');
+        const prop = proposicoes[idx];
         let categoria;
 
         if (ouroAtivado) {
-            // Confirma o voto inegociável
             categoria = botao === 'voto' ? 'inegociavel_voto' : 'inegociavel_veto';
             feedback.innerText = botao === 'voto'
                 ? '🪙✅ Inegociável — VOTOU A FAVOR!'
                 : '🪙❌ Inegociável — VETOU!';
             desativarOuro();
         } else {
-            categoria = botao; // 'voto' ou 'veto'
+            categoria = botao;
             feedback.innerText = botao === 'voto'
                 ? '✅ Você VOTOU A FAVOR!'
                 : '❌ Você VETOU!';
@@ -273,14 +304,12 @@
     }
 
     function abster() {
-        const card    = document.getElementById('main-card');
+        const card     = document.getElementById('main-card');
         const feedback = document.getElementById('feedback');
         if (!card) return;
 
-        const prop = proposicoes[idx];
-        salvarVoto(prop, 'abstencao');
+        salvarVoto(proposicoes[idx], 'abstencao');
         feedback.innerText = '⏭️ Adiado para depois!';
-
         card.classList.add('fade-out');
 
         setTimeout(() => {
@@ -292,7 +321,7 @@
     }
 
     function ativarOuro() {
-        if (ouroAtivado) { desativarOuro(); return; }   // segundo clique cancela
+        if (ouroAtivado) { desativarOuro(); return; }
         ouroAtivado = true;
 
         const card = document.getElementById('main-card');
@@ -300,8 +329,6 @@
 
         document.getElementById('gold-banner').classList.remove('hidden');
         document.getElementById('feedback').innerText = '';
-
-        // Destaca os botões ✔️ e ✖️ para guiar o usuário
         document.getElementById('btn-voto').classList.add('btn-pulse');
         document.getElementById('btn-veto').classList.add('btn-pulse');
         document.getElementById('btn-ouro').classList.add('opacity-50');
@@ -323,7 +350,92 @@
             `${idx + 1} de ${proposicoes.length} neste lote`;
     }
 
-    // ── INIT ────────────────────────────────────────────────────────────────
+    // ── TELA DE RANKING ──────────────────────────────────────────────────────
+    function abrirRanking() {
+        document.getElementById('tela-principal').classList.add('hidden');
+        const tela = document.getElementById('tela-ranking');
+        tela.classList.remove('hidden');
+        tela.classList.add('flex');
+        renderizarRanking();
+    }
+
+    function fecharRanking() {
+        const tela = document.getElementById('tela-ranking');
+        tela.classList.add('hidden');
+        tela.classList.remove('flex');
+        document.getElementById('tela-principal').classList.remove('hidden');
+    }
+
+    function renderizarRanking() {
+        const lista = document.getElementById('ranking-lista');
+        const dados = JSON.parse(localStorage.getItem('vv_ranking') || '{}');
+        const itens = Object.values(dados);
+
+        if (itens.length === 0) {
+            lista.innerHTML = `
+                <div class="flex flex-col items-center justify-center gap-4 mt-20 text-center">
+                    <span class="text-5xl">🗳️</span>
+                    <p class="text-gray-300 font-bold text-lg">Nenhum voto ainda!</p>
+                    <p class="text-gray-500 text-sm">Volte à tela principal e vote nas proposições.</p>
+                </div>`;
+            return;
+        }
+
+        // Ordena por total de interações (desc)
+        itens.sort((a, b) => {
+            const tot = x => (x.voto||0)+(x.veto||0)+(x.inegociavel_voto||0)+(x.inegociavel_veto||0)+(x.abstencao||0);
+            return tot(b) - tot(a);
+        });
+
+        lista.innerHTML = itens.map(item => {
+            const v  = item.voto             || 0;
+            const vt = item.veto             || 0;
+            const iv = item.inegociavel_voto || 0;
+            const ie = item.inegociavel_veto || 0;
+            const ab = item.abstencao        || 0;
+            const total = v + vt + iv + ie + ab;
+
+            const pct = n => total > 0 ? ((n / total) * 100).toFixed(1) : 0;
+
+            const ementa = (item.ementa || '').length > 120
+                ? item.ementa.slice(0, 120) + '…'
+                : (item.ementa || 'Sem descrição.');
+
+            // Segmentos das barras (só renderiza se > 0)
+            const segmentos = [
+                { val: v,  cor: 'bg-green-500',  label: `✔️ ${v}` },
+                { val: iv, cor: 'bg-yellow-400', label: `🪙✅ ${iv}` },
+                { val: ie, cor: 'bg-yellow-600', label: `🪙❌ ${ie}` },
+                { val: vt, cor: 'bg-red-500',    label: `✖️ ${vt}` },
+                { val: ab, cor: 'bg-gray-500',   label: `⏭️ ${ab}` },
+            ].filter(s => s.val > 0);
+
+            const barrasHTML = segmentos.map(s =>
+                `<div class="${s.cor} h-full rounded-sm" style="width:${pct(s.val)}%" title="${s.label}"></div>`
+            ).join('');
+
+            const legendaHTML = segmentos.map(s =>
+                `<span class="text-xs text-gray-400">${s.label}</span>`
+            ).join('<span class="text-gray-600 mx-1">·</span>');
+
+            return `
+            <div class="bg-gray-800 rounded-2xl p-4 shadow">
+                <div class="flex justify-between items-start mb-1">
+                    <span class="text-yellow-400 font-black text-sm">${item.titulo}</span>
+                    <span class="text-gray-500 text-xs ml-2 whitespace-nowrap">${total} interação${total !== 1 ? 'ões' : ''}</span>
+                </div>
+                <p class="text-gray-400 text-xs mb-3 leading-relaxed">${ementa}</p>
+                <div class="flex h-3 w-full rounded-full overflow-hidden gap-px bg-gray-700 mb-1">
+                    ${barrasHTML}
+                </div>
+                <div class="flex flex-wrap gap-x-2 gap-y-1 mt-1">
+                    ${legendaHTML}
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // ── INIT ─────────────────────────────────────────────────────────────────
     async function iniciar() {
         mostrarSkeleton();
         const curadas = await carregarCuradas();
