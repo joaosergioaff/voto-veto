@@ -9,9 +9,11 @@
         .card { transition: transform 0.35s ease, opacity 0.35s ease; }
         .swipe-left  { transform: translateX(-160%) rotate(-22deg); opacity: 0; }
         .swipe-right { transform: translateX(160%)  rotate(22deg);  opacity: 0; }
-        .gold-glow   { box-shadow: 0 0 24px #ffd700; border: 2px solid #ffd700; }
+        .gold-glow   { box-shadow: 0 0 28px #ffd700; border: 3px solid #ffd700 !important; }
         .skeleton { animation: pulse 1.4s infinite; background: #e5e7eb; border-radius: 6px; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        .btn-pulse { animation: btn-pop 0.6s ease infinite alternate; }
+        @keyframes btn-pop { from{transform:scale(1)} to{transform:scale(1.12)} }
     </style>
 </head>
 <body class="bg-gray-900 flex flex-col items-center justify-center min-h-screen font-sans p-4 text-white select-none">
@@ -23,75 +25,71 @@
 
     <div id="card-container" class="relative w-full max-w-sm" style="height:490px;"></div>
 
-    <div class="flex gap-6 mt-6 items-center">
-        <button onclick="votar('veto')"
+    <!-- Banner de Moeda de Ouro ativada -->
+    <div id="gold-banner" class="hidden mt-4 bg-yellow-400 text-yellow-900 font-bold text-sm px-5 py-2 rounded-full shadow-lg text-center">
+        🪙 Moeda de Ouro ativada — agora escolha ✔️ ou ✖️
+    </div>
+
+    <div class="flex gap-6 mt-4 items-center">
+        <button id="btn-veto" onclick="acionar('veto')"
             class="bg-red-600 hover:bg-red-500 active:scale-90 transition p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl"
             title="Vetar">✖️</button>
-        <button onclick="votar('super')"
+
+        <button id="btn-ouro" onclick="acionar('ouro')"
             class="bg-yellow-400 hover:bg-yellow-300 active:scale-90 transition p-4 rounded-full w-20 h-20 flex items-center justify-center shadow-lg border-4 border-yellow-200 text-3xl"
             title="Moeda de Ouro">🪙</button>
-        <button onclick="votar('voto')"
+
+        <button id="btn-voto" onclick="acionar('voto')"
             class="bg-green-600 hover:bg-green-500 active:scale-90 transition p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl"
             title="Votar a favor">✔️</button>
     </div>
 
-    <p id="feedback" class="mt-5 text-yellow-300 font-bold text-lg h-6"></p>
+    <p id="feedback" class="mt-5 text-yellow-300 font-bold text-lg h-6 text-center"></p>
     <p id="contador" class="text-gray-500 text-xs mt-2"></p>
 
     <script>
     // ── CONFIGURAÇÃO ────────────────────────────────────────────────────────
     const API_DIRETA = 'https://dadosabertos.camara.leg.br/api/v2';
     const PROXY      = 'https://corsproxy.io/?';
-    const TIPOS      = ['PL','PEC','MPV'];
+    const TIPOS      = ['PL', 'PEC', 'MPV'];
     const ITENS      = 15;
 
-    let proposicoes = [];
-    let index       = 0;
-    let pagina      = 1;
-    let carregando  = false;
+    let proposicoes  = [];
+    let idx          = 0;
+    let pagina       = 1;
+    let carregando   = false;
+    let ouroAtivado  = false;   // estado do modificador Moeda de Ouro
 
     // ── LOCALSTORAGE ────────────────────────────────────────────────────────
-    function salvarVoto(prop, tipo) {
-        const h = JSON.parse(localStorage.getItem('vv_historico') || '[]');
-        h.push({ id: prop.id, titulo: `${prop.siglaTipo} ${prop.numero}/${prop.ano}`,
-                 ementa: prop.ementa, voto: tipo, data: new Date().toISOString() });
-        localStorage.setItem('vv_historico', JSON.stringify(h));
-
-        const r = JSON.parse(localStorage.getItem('vv_ranking') || '{}');
-        const k = String(prop.id);
-        if (!r[k]) r[k] = { titulo:`${prop.siglaTipo} ${prop.numero}/${prop.ano}`,
-                             ementa:prop.ementa, votos:0, vetos:0, ouro:0 };
-        if (tipo==='voto')  r[k].votos++;
-        if (tipo==='veto')  r[k].vetos++;
-        if (tipo==='super') r[k].ouro++;
-        localStorage.setItem('vv_ranking', JSON.stringify(r));
+    // Categorias: voto | veto | inegociavel_voto | inegociavel_veto
+    function salvarVoto(prop, categoria) {
+        const chave = 'vv_votos';
+        const dados = JSON.parse(localStorage.getItem(chave) || '{}');
+        const id    = String(prop.id);
+        dados[id] = {
+            titulo:    `${prop.siglaTipo} ${prop.numero}/${prop.ano}`,
+            ementa:    prop.ementa || '',
+            categoria: categoria,
+            data:      new Date().toISOString()
+        };
+        localStorage.setItem(chave, JSON.stringify(dados));
     }
 
-    // ── FETCH COM FALLBACK ──────────────────────────────────────────────────
+    // ── FETCH COM FALLBACK CORS ─────────────────────────────────────────────
     async function fetchComFallback(path) {
-        const urlDireta = `${API_DIRETA}${path}`;
-
-        // Tenta direto primeiro
+        const url = `${API_DIRETA}${path}`;
         try {
-            const r = await fetch(urlDireta, { signal: AbortSignal.timeout(6000) });
+            const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
             if (r.ok) return await r.json();
-        } catch(_) {}
+        } catch (_) {}
 
-        // Fallback: usa proxy CORS
-        try {
-            const r = await fetch(PROXY + encodeURIComponent(urlDireta),
-                                  { signal: AbortSignal.timeout(8000) });
-            if (r.ok) {
-                const txt = await r.text();
-                // allorigins encapsula em {contents:...}, corsproxy.io retorna direto
-                try { return JSON.parse(txt); } catch(_) {
-                    const obj = JSON.parse(txt);
-                    return JSON.parse(obj.contents);
-                }
-            }
-        } catch(_) {}
-
-        throw new Error('Falha nas duas tentativas');
+        // Fallback: proxy CORS
+        const r = await fetch(PROXY + encodeURIComponent(url),
+                              { signal: AbortSignal.timeout(8000) });
+        if (!r.ok) throw new Error('proxy falhou');
+        const txt = await r.text();
+        try { return JSON.parse(txt); }
+        catch (_) { return JSON.parse(JSON.parse(txt).contents); }
     }
 
     // ── CARREGAR PROPOSIÇÕES ────────────────────────────────────────────────
@@ -106,34 +104,39 @@
             const json = await fetchComFallback(path);
 
             if (!json.dados || json.dados.length === 0) {
-                pagina = 1; carregando = false;
+                pagina = 1;
+                carregando = false;
                 return carregarProposicoes();
             }
 
             proposicoes = json.dados;
-            index = 0;
+            idx    = 0;
             pagina++;
             atualizarStatus();
-            carregarCard();
-        } catch(e) {
+            renderizarCard();
+        } catch (e) {
             mostrarErro();
         }
         carregando = false;
     }
 
     // ── RENDERIZAR CARD ─────────────────────────────────────────────────────
-    function carregarCard() {
+    function renderizarCard() {
         const container = document.getElementById('card-container');
-        if (index >= proposicoes.length) { carregarProposicoes(); return; }
+        if (idx >= proposicoes.length) { carregarProposicoes(); return; }
 
-        const p = proposicoes[index];
-        const data = p.dataApresentacao
+        const p      = proposicoes[idx];
+        const data   = p.dataApresentacao
             ? new Date(p.dataApresentacao).toLocaleDateString('pt-BR') : '–';
-        const ementa = (p.ementa || 'Sem descrição disponível.');
-        const ementaExib = ementa.length > 230 ? ementa.slice(0,230)+'…' : ementa;
+        const ementa     = p.ementa || 'Sem descrição disponível.';
+        const ementaExib = ementa.length > 230 ? ementa.slice(0, 230) + '…' : ementa;
 
-        const cores = { PL:'bg-blue-100 text-blue-800', PEC:'bg-yellow-100 text-yellow-800',
-                        MPV:'bg-pink-100 text-pink-800', PDL:'bg-green-100 text-green-800' };
+        const cores = {
+            PL:  'bg-blue-100 text-blue-800',
+            PEC: 'bg-yellow-100 text-yellow-800',
+            MPV: 'bg-pink-100 text-pink-800',
+            PDL: 'bg-green-100 text-green-800'
+        };
         const cor = cores[p.siglaTipo] || 'bg-gray-100 text-gray-800';
 
         container.innerHTML = `
@@ -166,10 +169,18 @@
                 </a>
                 <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-2xl">
                     <p class="text-xs font-bold text-yellow-700 mb-0.5">💡 DICA</p>
-                    <p class="text-xs text-yellow-800">Use a Moeda de Ouro 🪙 se este projeto for um ponto inegociável para você.</p>
+                    <p class="text-xs text-yellow-800">
+                        Use 🪙 se este projeto for um ponto <strong>inegociável</strong> para você —
+                        depois confirme com ✔️ ou ✖️.
+                    </p>
                 </div>
             </div>
         </div>`;
+
+        // Aplica glow se moeda já estava ativa ao trocar de card (não deve, mas por segurança)
+        if (ouroAtivado) {
+            document.getElementById('main-card').classList.add('gold-glow');
+        }
     }
 
     function mostrarSkeleton() {
@@ -200,41 +211,79 @@
             </div>`;
     }
 
-    // ── VOTAR ───────────────────────────────────────────────────────────────
-    function votar(tipo) {
-        const card     = document.getElementById('main-card');
-        const feedback = document.getElementById('feedback');
-        if (!card) return;
+    // ── MECÂNICA DA MOEDA DE OURO ──────────────────────────────────────────
+    // Fluxo: [🪙] ativa modificador → usuário escolhe [✔️] ou [✖️]
+    // Resultado: inegociavel_voto  ou  inegociavel_veto
+    // Sem moeda:  voto  ou  veto
 
-        const prop = proposicoes[index];
-
-        if (tipo === 'voto') {
-            card.classList.add('swipe-right');
-            feedback.innerText = '✅ Você VOTOU A FAVOR!';
-        } else if (tipo === 'veto') {
-            card.classList.add('swipe-left');
-            feedback.innerText = '❌ Você VETOU!';
-        } else {
-            card.classList.add('gold-glow');
-            feedback.innerText = '🪙 MOEDA DE OURO ATIVADA!';
-            setTimeout(() => card.classList.add('swipe-right'), 500);
+    function acionar(botao) {
+        if (botao === 'ouro') {
+            ativarOuro();
+            return;
         }
 
-        salvarVoto(prop, tipo);
+        const card = document.getElementById('main-card');
+        if (!card) return;
+
+        const prop      = proposicoes[idx];
+        const feedback  = document.getElementById('feedback');
+        let categoria;
+
+        if (ouroAtivado) {
+            // Confirma o voto inegociável
+            categoria = botao === 'voto' ? 'inegociavel_voto' : 'inegociavel_veto';
+            feedback.innerText = botao === 'voto'
+                ? '🪙✅ Inegociável — VOTOU A FAVOR!'
+                : '🪙❌ Inegociável — VETOU!';
+            desativarOuro();
+        } else {
+            categoria = botao; // 'voto' ou 'veto'
+            feedback.innerText = botao === 'voto'
+                ? '✅ Você VOTOU A FAVOR!'
+                : '❌ Você VETOU!';
+        }
+
+        card.classList.add(botao === 'voto' ? 'swipe-right' : 'swipe-left');
+        salvarVoto(prop, categoria);
 
         setTimeout(() => {
-            index++;
+            idx++;
             feedback.innerText = '';
             atualizarStatus();
-            carregarCard();
-        }, tipo === 'super' ? 900 : 500);
+            renderizarCard();
+        }, 500);
     }
 
+    function ativarOuro() {
+        if (ouroAtivado) { desativarOuro(); return; }   // segundo clique cancela
+        ouroAtivado = true;
+
+        const card = document.getElementById('main-card');
+        if (card) card.classList.add('gold-glow');
+
+        document.getElementById('gold-banner').classList.remove('hidden');
+        document.getElementById('feedback').innerText = '';
+
+        // Destaca os botões ✔️ e ✖️ para guiar o usuário
+        document.getElementById('btn-voto').classList.add('btn-pulse');
+        document.getElementById('btn-veto').classList.add('btn-pulse');
+        document.getElementById('btn-ouro').classList.add('opacity-50');
+    }
+
+    function desativarOuro() {
+        ouroAtivado = false;
+        document.getElementById('gold-banner').classList.add('hidden');
+        document.getElementById('btn-voto').classList.remove('btn-pulse');
+        document.getElementById('btn-veto').classList.remove('btn-pulse');
+        document.getElementById('btn-ouro').classList.remove('opacity-50');
+    }
+
+    // ── STATUS ───────────────────────────────────────────────────────────────
     function atualizarStatus() {
         document.getElementById('status-text').innerText =
             'Projetos de lei reais da Câmara dos Deputados';
         document.getElementById('contador').innerText =
-            `${index + 1} de ${proposicoes.length} neste lote`;
+            `${idx + 1} de ${proposicoes.length} neste lote`;
     }
 
     // ── INIT ────────────────────────────────────────────────────────────────
