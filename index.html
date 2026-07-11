@@ -28,6 +28,10 @@
         class="fixed top-4 right-4 z-50 bg-yellow-400 hover:bg-yellow-300 active:scale-90 transition w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-2xl"
         title="Ver ranking">🏆</button>
 
+    <button onclick="abrirPerfil()"
+        class="fixed top-20 right-4 z-50 bg-gray-700 hover:bg-gray-600 active:scale-90 transition w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-2xl"
+        title="Meu perfil">👤</button>
+
     <!-- ── TELA PRINCIPAL ────────────────────────────────────────────────── -->
     <div id="tela-principal" class="flex flex-col items-center justify-center min-h-screen p-4">
 
@@ -108,6 +112,181 @@
         <div id="historico-lista" class="flex flex-col gap-3 pb-8"></div>
 
     </div><!-- /tela-historico -->
+
+    <!-- ── TELA PERFIL ──────────────────────────────────────────────────────── -->
+    <div id="tela-perfil" class="hidden flex-col min-h-screen w-full max-w-lg mx-auto">
+
+        <!-- Cabeçalho fixo -->
+        <div class="sticky top-0 bg-gray-900 z-10 px-4 pt-4 pb-3 flex items-center gap-3">
+            <button onclick="fecharPerfil()"
+                class="bg-gray-700 hover:bg-gray-600 active:scale-90 transition px-4 py-2 rounded-full text-sm font-bold">
+                ← Voltar
+            </button>
+            <h2 class="text-xl font-black text-gray-200">👤 Meu Perfil</h2>
+        </div>
+
+        <!-- Aviso de privacidade -->
+        <div class="mx-4 mb-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 flex items-start gap-2">
+            <span class="text-base mt-0.5 shrink-0">🔒</span>
+            <p class="text-gray-400 text-xs leading-relaxed">Todos os dados ficam <strong class="text-gray-300">apenas no seu dispositivo</strong> e nunca são enviados para nenhum servidor.</p>
+        </div>
+
+        <!-- Formulário -->
+        <div class="flex flex-col gap-6 px-4 py-4 pb-10">
+
+            <!-- 1. Faixa etária -->
+            <section>
+                <p class="text-gray-300 font-bold text-sm mb-3">Faixa etária <span class="text-gray-500 font-normal">(opcional)</span></p>
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="faixa-crianca" onclick="toggleFaixa('crianca')"
+                        class="bg-gray-700 text-gray-300 rounded-2xl p-4 flex flex-col items-center gap-1 transition active:scale-95">
+                        <span class="text-3xl">👶</span>
+                        <span class="font-bold text-sm">Criança</span>
+                        <span class="text-xs opacity-70">10 – 12 anos</span>
+                    </button>
+                    <button id="faixa-jovem" onclick="toggleFaixa('jovem')"
+                        class="bg-gray-700 text-gray-300 rounded-2xl p-4 flex flex-col items-center gap-1 transition active:scale-95">
+                        <span class="text-3xl">🧑</span>
+                        <span class="font-bold text-sm">Jovem</span>
+                        <span class="text-xs opacity-70">13 – 17 anos</span>
+                    </button>
+                    <button id="faixa-adulto" onclick="toggleFaixa('adulto')"
+                        class="bg-gray-700 text-gray-300 rounded-2xl p-4 flex flex-col items-center gap-1 transition active:scale-95">
+                        <span class="text-3xl">🧑‍💼</span>
+                        <span class="font-bold text-sm">Adulto</span>
+                        <span class="text-xs opacity-70">18 – 59 anos</span>
+                    </button>
+                    <button id="faixa-idoso" onclick="toggleFaixa('idoso')"
+                        class="bg-gray-700 text-gray-300 rounded-2xl p-4 flex flex-col items-center gap-1 transition active:scale-95">
+                        <span class="text-3xl">👴</span>
+                        <span class="font-bold text-sm">Idoso</span>
+                        <span class="text-xs opacity-70">60+ anos</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- 2. Estado -->
+            <section>
+                <label for="perfil-estado" class="text-gray-300 font-bold text-sm block mb-3">
+                    Estado <span class="text-gray-500 font-normal">(opcional)</span>
+                </label>
+                <select id="perfil-estado"
+                    class="w-full bg-gray-700 text-white rounded-xl px-4 py-3 text-sm border border-gray-600 focus:outline-none focus:border-gray-400 cursor-pointer">
+                    <option value="">-- Selecione seu estado --</option>
+                    <option value="AC">Acre</option>
+                    <option value="AL">Alagoas</option>
+                    <option value="AP">Amapá</option>
+                    <option value="AM">Amazonas</option>
+                    <option value="BA">Bahia</option>
+                    <option value="CE">Ceará</option>
+                    <option value="DF">Distrito Federal</option>
+                    <option value="ES">Espírito Santo</option>
+                    <option value="GO">Goiás</option>
+                    <option value="MA">Maranhão</option>
+                    <option value="MT">Mato Grosso</option>
+                    <option value="MS">Mato Grosso do Sul</option>
+                    <option value="MG">Minas Gerais</option>
+                    <option value="PA">Pará</option>
+                    <option value="PB">Paraíba</option>
+                    <option value="PR">Paraná</option>
+                    <option value="PE">Pernambuco</option>
+                    <option value="PI">Piauí</option>
+                    <option value="RJ">Rio de Janeiro</option>
+                    <option value="RN">Rio Grande do Norte</option>
+                    <option value="RS">Rio Grande do Sul</option>
+                    <option value="RO">Rondônia</option>
+                    <option value="RR">Roraima</option>
+                    <option value="SC">Santa Catarina</option>
+                    <option value="SP">São Paulo</option>
+                    <option value="SE">Sergipe</option>
+                    <option value="TO">Tocantins</option>
+                </select>
+            </section>
+
+            <!-- 3. Temas de interesse -->
+            <section>
+                <p class="text-gray-300 font-bold text-sm mb-3">Temas de interesse <span class="text-gray-500 font-normal">(opcional)</span></p>
+                <div class="grid grid-cols-2 gap-2">
+                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
+                        <input type="checkbox" id="tema-Trabalho" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
+                        <span class="text-sm text-gray-200">💼 Trabalho</span>
+                    </label>
+                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
+                        <input type="checkbox" id="tema-Impostos" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
+                        <span class="text-sm text-gray-200">💰 Impostos</span>
+                    </label>
+                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
+                        <input type="checkbox" id="tema-Saude" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
+                        <span class="text-sm text-gray-200">🏥 Saúde</span>
+                    </label>
+                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
+                        <input type="checkbox" id="tema-Educacao" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
+                        <span class="text-sm text-gray-200">📚 Educação</span>
+                    </label>
+                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
+                        <input type="checkbox" id="tema-Seguranca" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
+                        <span class="text-sm text-gray-200">🛡️ Segurança</span>
+                    </label>
+                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
+                        <input type="checkbox" id="tema-Previdencia" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
+                        <span class="text-sm text-gray-200">🏦 Previdência</span>
+                    </label>
+                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
+                        <input type="checkbox" id="tema-Meio-Ambiente" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
+                        <span class="text-sm text-gray-200">🌿 Meio Ambiente</span>
+                    </label>
+                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
+                        <input type="checkbox" id="tema-Tecnologia" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
+                        <span class="text-sm text-gray-200">💻 Tecnologia</span>
+                    </label>
+                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
+                        <input type="checkbox" id="tema-Habitacao" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
+                        <span class="text-sm text-gray-200">🏠 Habitação</span>
+                    </label>
+                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
+                        <input type="checkbox" id="tema-Transporte" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
+                        <span class="text-sm text-gray-200">🚌 Transporte</span>
+                    </label>
+                </div>
+            </section>
+
+            <!-- 4. PcD -->
+            <section>
+                <p class="text-gray-300 font-bold text-sm mb-3">Pessoa com Deficiência (PcD) <span class="text-gray-500 font-normal">(opcional)</span></p>
+                <div class="flex gap-3 mb-3">
+                    <button id="pcd-nao" onclick="setPcd(false)"
+                        class="flex-1 py-2.5 rounded-xl text-sm font-bold transition active:scale-95 bg-gray-700 text-gray-300">
+                        Não
+                    </button>
+                    <button id="pcd-sim" onclick="setPcd(true)"
+                        class="flex-1 py-2.5 rounded-xl text-sm font-bold transition active:scale-95 bg-gray-700 text-gray-300">
+                        Sim
+                    </button>
+                </div>
+                <div id="pcd-campo" class="hidden">
+                    <input id="perfil-pcd-descricao" type="text"
+                        placeholder="Qual deficiência? (opcional)"
+                        class="w-full bg-gray-700 text-white rounded-xl px-4 py-3 text-sm border border-gray-600 focus:outline-none focus:border-gray-400 placeholder-gray-500" />
+                </div>
+            </section>
+
+            <!-- Feedback -->
+            <p id="perfil-feedback" class="text-green-400 text-sm font-bold text-center -mt-2" style="opacity:0;transition:opacity .4s;"></p>
+
+            <!-- Ações -->
+            <div class="flex flex-col gap-3">
+                <button onclick="salvarPerfil()"
+                    class="bg-green-600 hover:bg-green-500 active:scale-95 transition w-full py-3.5 rounded-2xl text-base font-black">
+                    💾 Salvar perfil
+                </button>
+                <button onclick="limparPerfil()"
+                    class="bg-gray-700 hover:bg-gray-600 active:scale-95 transition w-full py-3 rounded-2xl text-sm font-bold text-gray-400">
+                    🗑️ Limpar perfil
+                </button>
+            </div>
+
+        </div><!-- /formulário -->
+    </div><!-- /tela-perfil -->
 
     <script>
     // ── CONFIGURAÇÃO ────────────────────────────────────────────────────────
@@ -551,6 +730,114 @@
                 <p class="text-gray-600 text-xs">${dataFmt}</p>
             </div>`;
         }).join('');
+    }
+
+    // ── TELA DE PERFIL ──────────────────────────────────────────────────────
+    const TEMAS_LISTA = ['Trabalho','Impostos','Saúde','Educação','Segurança','Previdência','Meio Ambiente','Tecnologia','Habitação','Transporte'];
+
+    let _faixaSel = null;
+    let _pcdSel   = false;
+
+    function slugTema(t) {
+        return t.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '-');
+    }
+
+    function abrirPerfil() {
+        document.getElementById('tela-principal').classList.add('hidden');
+        const tela = document.getElementById('tela-perfil');
+        tela.classList.remove('hidden');
+        tela.classList.add('flex');
+        carregarPerfil();
+    }
+
+    function fecharPerfil() {
+        const tela = document.getElementById('tela-perfil');
+        tela.classList.add('hidden');
+        tela.classList.remove('flex');
+        document.getElementById('tela-principal').classList.remove('hidden');
+    }
+
+    function carregarPerfil() {
+        const p = JSON.parse(localStorage.getItem('vv_perfil') || '{}');
+        _faixaSel = p.faixaEtaria || null;
+        _pcdSel   = p.pcd || false;
+        _renderFaixas();
+        document.getElementById('perfil-estado').value = p.estado || '';
+        TEMAS_LISTA.forEach(t => {
+            const cb = document.getElementById(`tema-${slugTema(t)}`);
+            if (cb) cb.checked = (p.temas || []).includes(t);
+        });
+        _renderPcd();
+        document.getElementById('perfil-pcd-descricao').value = p.pcdDescricao || '';
+    }
+
+    function toggleFaixa(faixa) {
+        _faixaSel = (_faixaSel === faixa) ? null : faixa;
+        _renderFaixas();
+    }
+
+    function _renderFaixas() {
+        const cfg = {
+            crianca: 'bg-blue-500 text-white ring-2 ring-blue-300',
+            jovem:   'bg-green-500 text-white ring-2 ring-green-300',
+            adulto:  'bg-purple-500 text-white ring-2 ring-purple-300',
+            idoso:   'bg-orange-500 text-white ring-2 ring-orange-300',
+        };
+        const UNSEL = 'bg-gray-700 text-gray-300';
+        ['crianca','jovem','adulto','idoso'].forEach(k => {
+            const btn = document.getElementById(`faixa-${k}`);
+            if (!btn) return;
+            const base = [...btn.classList].filter(c => !c.startsWith('bg-') && !c.startsWith('text-') && !c.startsWith('ring'));
+            btn.className = [...base, ...(k === _faixaSel ? cfg[k] : UNSEL).split(' ')].join(' ');
+        });
+    }
+
+    function setPcd(sim) {
+        _pcdSel = sim;
+        _renderPcd();
+    }
+
+    function _renderPcd() {
+        const SEL   = 'bg-blue-500 text-white ring-2 ring-blue-300';
+        const UNSEL = 'bg-gray-700 text-gray-300';
+        ['nao','sim'].forEach(k => {
+            const btn  = document.getElementById(`pcd-${k}`);
+            const active = (k === 'sim') ? _pcdSel : !_pcdSel;
+            const base = [...btn.classList].filter(c => !c.startsWith('bg-') && !c.startsWith('text-') && !c.startsWith('ring'));
+            btn.className = [...base, ...(active ? SEL : UNSEL).split(' ')].join(' ');
+        });
+        const campo = document.getElementById('pcd-campo');
+        if (_pcdSel) campo.classList.remove('hidden');
+        else campo.classList.add('hidden');
+    }
+
+    function salvarPerfil() {
+        const perfil = {
+            faixaEtaria:  _faixaSel,
+            estado:       document.getElementById('perfil-estado').value,
+            temas:        TEMAS_LISTA.filter(t => document.getElementById(`tema-${slugTema(t)}`)?.checked),
+            pcd:          _pcdSel,
+            pcdDescricao: _pcdSel ? document.getElementById('perfil-pcd-descricao').value.trim() : ''
+        };
+        localStorage.setItem('vv_perfil', JSON.stringify(perfil));
+        localStorage.setItem('vv_modo_kids', _faixaSel === 'crianca' ? 'true' : 'false');
+        mostrarFeedbackPerfil('✅ Perfil salvo!');
+    }
+
+    function limparPerfil() {
+        localStorage.removeItem('vv_perfil');
+        localStorage.removeItem('vv_modo_kids');
+        _faixaSel = null;
+        _pcdSel   = false;
+        carregarPerfil();
+        mostrarFeedbackPerfil('🗑️ Perfil apagado.');
+    }
+
+    function mostrarFeedbackPerfil(msg) {
+        const el = document.getElementById('perfil-feedback');
+        el.innerText = msg;
+        el.style.opacity = '1';
+        setTimeout(() => { el.style.opacity = '0'; }, 2500);
     }
 
     // ── INIT ─────────────────────────────────────────────────────────────────
