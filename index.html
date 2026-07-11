@@ -883,6 +883,36 @@
         setTimeout(() => { el.style.opacity = '0'; }, 2500);
     }
 
+    // ── VOTOS DOS DEPUTADOS (background) ─────────────────────────────────────
+    // Busca a votação mais recente de cada lei curada e salva os votos
+    // individuais em vv_votos_deputados. Totalmente silenciosa.
+    async function carregarVotosDeputados() {
+        try {
+            const resultado = {};
+            for (const id of LISTA_CURADA) {
+                try {
+                    const jsonVotacoes = await fetchComFallback(`/proposicoes/${id}/votacoes`);
+                    if (!jsonVotacoes.dados || jsonVotacoes.dados.length === 0) continue;
+
+                    // Votação mais recente = última do array
+                    const idVotacao = jsonVotacoes.dados[jsonVotacoes.dados.length - 1].id;
+
+                    const jsonVotos = await fetchComFallback(`/votacoes/${idVotacao}/votos`);
+                    if (!jsonVotos.dados) continue;
+
+                    resultado[id] = jsonVotos.dados.map(v => ({
+                        idDeputado:   v.deputado_?.id,
+                        nomeDeputado: v.deputado_?.nome,
+                        siglaPartido: v.deputado_?.siglaPartido,
+                        siglaUf:      v.deputado_?.siglaUf,
+                        voto:         v.tipoVoto   // "Sim" | "Não" | "Abstenção" | "Obstrução"
+                    }));
+                } catch (_) {}
+            }
+            localStorage.setItem('vv_votos_deputados', JSON.stringify(resultado));
+        } catch (_) {}
+    }
+
     // ── INIT ─────────────────────────────────────────────────────────────────
     async function iniciar() {
         mostrarSkeleton();
@@ -900,6 +930,7 @@
     }
 
     iniciar();
+    carregarVotosDeputados(); // fire-and-forget, silencioso
     </script>
 </body>
 </html>
