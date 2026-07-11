@@ -54,16 +54,17 @@
 
     <script>
     // ── CONFIGURAÇÃO ────────────────────────────────────────────────────────
-    const API_DIRETA = 'https://dadosabertos.camara.leg.br/api/v2';
-    const PROXY      = 'https://corsproxy.io/?';
-    const TIPOS      = ['PL', 'PEC', 'MPV'];
-    const ITENS      = 15;
+    const API_DIRETA  = 'https://dadosabertos.camara.leg.br/api/v2';
+    const PROXY       = 'https://corsproxy.io/?';
+    const TIPOS       = ['PL', 'PEC', 'MPV'];
+    const ITENS       = 15;
+    const LISTA_CURADA = [2485341, 2487436];
 
-    let proposicoes  = [];
-    let idx          = 0;
-    let pagina       = 1;
-    let carregando   = false;
-    let ouroAtivado  = false;   // estado do modificador Moeda de Ouro
+    let proposicoes   = [];
+    let idx           = 0;
+    let pagina        = 1;
+    let carregando    = false;
+    let ouroAtivado   = false;
 
     // ── LOCALSTORAGE ────────────────────────────────────────────────────────
     // Categorias: voto | veto | inegociavel_voto | inegociavel_veto
@@ -95,6 +96,18 @@
         const txt = await r.text();
         try { return JSON.parse(txt); }
         catch (_) { return JSON.parse(JSON.parse(txt).contents); }
+    }
+
+    // ── LISTA CURADA ────────────────────────────────────────────────────────
+    async function carregarCuradas() {
+        const resultado = [];
+        for (const id of LISTA_CURADA) {
+            try {
+                const json = await fetchComFallback(`/proposicoes/${id}`);
+                if (json.dados) resultado.push(json.dados);
+            } catch (_) {}
+        }
+        return resultado;
     }
 
     // ── CARREGAR PROPOSIÇÕES ────────────────────────────────────────────────
@@ -311,7 +324,20 @@
     }
 
     // ── INIT ────────────────────────────────────────────────────────────────
-    carregarProposicoes();
+    async function iniciar() {
+        mostrarSkeleton();
+        const curadas = await carregarCuradas();
+        if (curadas.length > 0) {
+            proposicoes = curadas;
+            idx = 0;
+            atualizarStatus();
+            renderizarCard();
+        } else {
+            carregarProposicoes();
+        }
+    }
+
+    iniciar();
     </script>
 </body>
 </html>
