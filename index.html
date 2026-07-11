@@ -1,166 +1,161 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Voto & Veto</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
     <style>
-        .card { transition: transform 0.35s ease, opacity 0.35s ease; }
+        .card-law { transition: transform 0.35s ease, opacity 0.35s ease; }
         .swipe-left  { transform: translateX(-160%) rotate(-22deg); opacity: 0; }
         .swipe-right { transform: translateX(160%)  rotate(22deg);  opacity: 0; }
-        .gold-glow   { box-shadow: 0 0 28px #ffd700; border: 3px solid #ffd700 !important; }
         .fade-out    { transition: opacity 0.35s ease; opacity: 0; }
-        .skeleton    { animation: pulse 1.4s infinite; background: #e5e7eb; border-radius: 6px; }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-        .btn-pulse   { animation: btn-pop 0.6s ease infinite alternate; }
+        .skel { animation: skel-pulse 1.4s infinite; border-radius: 6px; }
+        @keyframes skel-pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+        .btn-pulse { animation: btn-pop 0.6s ease infinite alternate; }
         @keyframes btn-pop { from{transform:scale(1)} to{transform:scale(1.12)} }
     </style>
 </head>
-<body class="bg-gray-900 font-sans text-white select-none">
+<body class="select-none">
 
-    <!-- ── BOTÕES FLUTUANTES ─────────────────────────────────────────────── -->
-    <button onclick="abrirHistorico()"
-        class="fixed top-4 left-4 z-50 bg-gray-700 hover:bg-gray-600 active:scale-90 transition w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-2xl"
-        title="Ver histórico">📋</button>
-
-    <button onclick="abrirRanking()"
-        class="fixed top-4 right-4 z-50 bg-yellow-400 hover:bg-yellow-300 active:scale-90 transition w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-2xl"
-        title="Ver ranking">🏆</button>
-
-    <button onclick="abrirPerfil()"
-        class="fixed top-20 right-4 z-50 bg-gray-700 hover:bg-gray-600 active:scale-90 transition w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-2xl"
-        title="Meu perfil">👤</button>
-
-    <button onclick="abrirWrapped()"
-        class="fixed bottom-6 right-4 z-50 bg-purple-600 hover:bg-purple-500 active:scale-90 transition w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-2xl"
-        title="Wrapped Cívico">🎁</button>
-
-    <!-- ── TELA PRINCIPAL ────────────────────────────────────────────────── -->
-    <div id="tela-principal" class="flex flex-col items-center justify-center min-h-screen p-4">
-
-        <div class="mb-5 text-center">
-            <h1 class="text-2xl font-black text-yellow-400 tracking-wide">Voto & Veto</h1>
-            <p id="status-text" class="text-gray-400 text-xs mt-1">Carregando projetos de lei...</p>
-            <div id="badge-perfil" class="hidden mt-1.5 inline-flex items-center gap-1 text-gray-400 text-xs">
-                <span>🎯</span><span>Personalizado para você</span>
-            </div>
+<!-- ── NAVBAR FIXA ────────────────────────────────────────────────────────── -->
+<nav class="navbar fixed top-0 left-0 right-0 z-30 bg-base-200 border-b border-base-300 min-h-[56px] px-2 py-1">
+    <div class="navbar-start gap-1 min-w-0">
+        <div class="flex flex-col min-w-0">
+            <h1 class="font-black text-warning text-xl leading-none">Voto &amp; Veto</h1>
+            <p id="status-text" class="text-xs text-base-content/40 leading-tight mt-0.5 truncate max-w-[160px]">Carregando...</p>
         </div>
+        <div id="badge-perfil" class="hidden badge badge-ghost gap-0.5 text-xs ml-2 shrink-0">🎯 Personalizado</div>
+    </div>
+    <div class="navbar-end gap-0">
+        <button onclick="abrirRanking()"   class="btn btn-ghost btn-sm btn-square text-xl" title="Ranking">🏆</button>
+        <button onclick="abrirHistorico()" class="btn btn-ghost btn-sm btn-square text-xl" title="Histórico">📋</button>
+        <button onclick="abrirPerfil()"    class="btn btn-ghost btn-sm btn-square text-xl" title="Perfil">👤</button>
+        <button onclick="abrirWrapped()"   class="btn btn-ghost btn-sm btn-square text-xl" title="Wrapped Cívico">🎁</button>
+    </div>
+</nav>
 
-        <div id="card-container" class="relative w-full max-w-sm" style="height:520px;"></div>
-
-        <p id="feedback" class="mt-5 text-yellow-300 font-bold text-lg h-6 text-center"></p>
-        <p id="contador" class="text-gray-500 text-xs mt-2"></p>
-
-    </div><!-- /tela-principal -->
-
-    <!-- ── TELA RANKING ──────────────────────────────────────────────────── -->
-    <div id="tela-ranking" class="hidden flex-col min-h-screen p-4 w-full max-w-lg mx-auto">
-
-        <!-- Cabeçalho -->
-        <div class="flex items-center gap-3 pt-4 pb-5">
-            <button onclick="fecharRanking()"
-                class="bg-gray-700 hover:bg-gray-600 active:scale-90 transition px-4 py-2 rounded-full text-sm font-bold flex items-center gap-1">
-                ← Voltar
-            </button>
-            <h2 class="text-xl font-black text-yellow-400">🏆 Meu Histórico</h2>
+<!-- ── TELA PRINCIPAL (área central scrollável) ───────────────────────────── -->
+<main id="tela-principal" class="flex flex-col items-center" style="padding-top:64px;padding-bottom:130px;min-height:100vh;">
+    <div class="w-full max-w-sm px-3 pt-2 flex flex-col items-center">
+        <div class="flex items-center w-full mb-1 min-h-[20px]">
+            <p id="feedback" class="text-warning font-bold text-base leading-none flex-1 text-center"></p>
+            <p id="contador" class="text-xs text-base-content/40 shrink-0"></p>
         </div>
+        <div id="card-container" class="relative w-full" style="height:460px;"></div>
+    </div>
+</main>
 
-        <!-- Lista de leis votadas -->
-        <div id="ranking-lista" class="flex flex-col gap-4 pb-8"></div>
-
-    </div><!-- /tela-ranking -->
-
-    <!-- ── TELA HISTÓRICO ───────────────────────────────────────────────────── -->
-    <div id="tela-historico" class="hidden flex-col min-h-screen p-4 w-full max-w-lg mx-auto">
-
-        <!-- Cabeçalho -->
-        <div class="flex items-center gap-3 pt-4 pb-4">
-            <button onclick="fecharHistorico()"
-                class="bg-gray-700 hover:bg-gray-600 active:scale-90 transition px-4 py-2 rounded-full text-sm font-bold">
-                ← Voltar
-            </button>
-            <h2 class="text-xl font-black text-gray-200">📋 Histórico</h2>
+<!-- ── RODAPÉ FIXO: BOTÕES DE AÇÃO ───────────────────────────────────────── -->
+<footer id="rodape-acoes" class="fixed bottom-0 left-0 right-0 z-30 bg-base-200 border-t border-base-300 transition-all duration-300">
+    <p id="rodape-ouro-hint" class="hidden text-center font-black text-sm py-1.5 text-yellow-900">🪙 Escolha o lado da sua moeda</p>
+    <div class="flex items-center justify-around px-4 pb-3 pt-2 max-w-sm mx-auto">
+        <div class="flex flex-col items-center gap-1">
+            <button onclick="acionar('veto')" id="btn-veto"
+                class="btn btn-error btn-circle w-14 h-14 text-2xl shadow-lg">✖️</button>
+            <span class="text-xs text-base-content/50 font-bold">Vetar</span>
         </div>
-
-        <!-- Filtros -->
-        <div class="flex gap-2 overflow-x-auto pb-3 scrollbar-hide" style="scrollbar-width:none;">
-            <button onclick="renderizarHistorico('todos')"      id="f-todos"         class="filtro-btn whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold transition">Todos</button>
-            <button onclick="renderizarHistorico('voto')"       id="f-voto"          class="filtro-btn whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold transition">✅ Votos</button>
-            <button onclick="renderizarHistorico('veto')"       id="f-veto"          class="filtro-btn whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold transition">❌ Vetos</button>
-            <button onclick="renderizarHistorico('inegociavel')" id="f-inegociavel"  class="filtro-btn whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold transition">🪙 Inegociáveis</button>
-            <button onclick="renderizarHistorico('abstencao')"  id="f-abstencao"     class="filtro-btn whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold transition">⏭️ Pendentes</button>
+        <div class="flex flex-col items-center gap-1">
+            <button onclick="acionar('ouro')" id="btn-ouro"
+                class="btn btn-warning btn-circle w-16 h-16 text-3xl shadow-lg border-2 border-yellow-300">🪙</button>
+            <span class="text-xs text-base-content/50 font-bold">Inegociável</span>
         </div>
-
-        <!-- Lista -->
-        <div id="historico-lista" class="flex flex-col gap-3 pb-8"></div>
-
-    </div><!-- /tela-historico -->
-
-    <!-- ── TELA PERFIL ──────────────────────────────────────────────────────── -->
-    <div id="tela-perfil" class="hidden flex-col min-h-screen w-full max-w-lg mx-auto">
-
-        <!-- Cabeçalho fixo -->
-        <div class="sticky top-0 bg-gray-900 z-10 px-4 pt-4 pb-3 flex items-center gap-3">
-            <button onclick="fecharPerfil()"
-                class="bg-gray-700 hover:bg-gray-600 active:scale-90 transition px-4 py-2 rounded-full text-sm font-bold">
-                ← Voltar
-            </button>
-            <h2 class="text-xl font-black text-gray-200">👤 Meu Perfil</h2>
+        <div class="flex flex-col items-center gap-1">
+            <button onclick="acionar('voto')" id="btn-voto"
+                class="btn btn-success btn-circle w-14 h-14 text-2xl shadow-lg">✔️</button>
+            <span class="text-xs text-base-content/50 font-bold">Votar</span>
         </div>
-
-        <!-- Aviso de privacidade -->
-        <div class="mx-4 mb-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 flex items-start gap-2">
-            <span class="text-base mt-0.5 shrink-0">🔒</span>
-            <p class="text-gray-400 text-xs leading-relaxed">Todos os dados ficam <strong class="text-gray-300">apenas no seu dispositivo</strong> e nunca são enviados para nenhum servidor.</p>
+        <div class="flex flex-col items-center gap-1">
+            <button onclick="abster()" id="btn-abstencao"
+                class="btn btn-ghost btn-circle w-12 h-12 text-xl">⏭️</button>
+            <span class="text-xs text-base-content/50 font-bold">Depois</span>
         </div>
+    </div>
+</footer>
 
-        <!-- Formulário -->
+<!-- ── TELA RANKING (modal fullscreen) ───────────────────────────────────── -->
+<div id="tela-ranking" class="hidden fixed inset-0 z-50 bg-base-100 flex-col">
+    <div class="flex items-center justify-between px-4 py-3 bg-base-200 border-b border-base-300 shrink-0">
+        <h2 class="font-black text-warning text-xl">🏆 Ranking</h2>
+        <button onclick="fecharRanking()" class="btn btn-ghost btn-sm btn-circle text-lg font-bold">✕</button>
+    </div>
+    <div class="flex-1 overflow-y-auto px-4 py-4 pb-8 w-full max-w-lg mx-auto">
+        <div id="ranking-lista" class="flex flex-col gap-4"></div>
+    </div>
+</div>
+
+<!-- ── TELA HISTÓRICO (modal fullscreen) ─────────────────────────────────── -->
+<div id="tela-historico" class="hidden fixed inset-0 z-50 bg-base-100 flex-col">
+    <div class="flex items-center justify-between px-4 py-3 bg-base-200 border-b border-base-300 shrink-0">
+        <h2 class="font-black text-xl">📋 Histórico</h2>
+        <button onclick="fecharHistorico()" class="btn btn-ghost btn-sm btn-circle text-lg font-bold">✕</button>
+    </div>
+    <div class="flex gap-2 overflow-x-auto px-4 py-2 border-b border-base-300 shrink-0" style="scrollbar-width:none;">
+        <button onclick="renderizarHistorico('todos')"       id="f-todos"        class="btn btn-xs whitespace-nowrap">Todos</button>
+        <button onclick="renderizarHistorico('voto')"        id="f-voto"         class="btn btn-xs whitespace-nowrap">✅ Votos</button>
+        <button onclick="renderizarHistorico('veto')"        id="f-veto"         class="btn btn-xs whitespace-nowrap">❌ Vetos</button>
+        <button onclick="renderizarHistorico('inegociavel')" id="f-inegociavel"  class="btn btn-xs whitespace-nowrap">🪙 Inegociáveis</button>
+        <button onclick="renderizarHistorico('abstencao')"   id="f-abstencao"    class="btn btn-xs whitespace-nowrap">⏭️ Pendentes</button>
+    </div>
+    <div class="flex-1 overflow-y-auto px-4 py-4 pb-8 w-full max-w-lg mx-auto">
+        <div id="historico-lista" class="flex flex-col gap-3"></div>
+    </div>
+</div>
+
+<!-- ── TELA PERFIL (modal fullscreen) ────────────────────────────────────── -->
+<div id="tela-perfil" class="hidden fixed inset-0 z-50 bg-base-100 flex-col">
+    <div class="flex items-center justify-between px-4 py-3 bg-base-200 border-b border-base-300 shrink-0">
+        <h2 class="font-black text-xl">👤 Meu Perfil</h2>
+        <button onclick="fecharPerfil()" class="btn btn-ghost btn-sm btn-circle text-lg font-bold">✕</button>
+    </div>
+    <div class="flex-1 overflow-y-auto w-full max-w-lg mx-auto">
+        <div class="mx-4 mt-3 alert py-2">
+            <span class="text-xs">🔒 Todos os dados ficam <strong>apenas no seu dispositivo</strong> e nunca são enviados para nenhum servidor.</span>
+        </div>
         <div class="flex flex-col gap-6 px-4 py-4 pb-10">
 
             <!-- 1. Faixa etária -->
             <section>
-                <p class="text-gray-300 font-bold text-sm mb-3">Faixa etária <span class="text-gray-500 font-normal">(opcional)</span></p>
+                <p class="font-bold text-sm mb-3">Faixa etária <span class="text-base-content/50 font-normal">(opcional)</span></p>
                 <div class="grid grid-cols-2 gap-3">
                     <button id="faixa-crianca" onclick="toggleFaixa('crianca')"
-                        class="bg-gray-700 text-gray-300 rounded-2xl p-4 flex flex-col items-center gap-1 transition active:scale-95">
+                        class="btn btn-outline flex-col h-auto py-3 gap-1">
                         <span class="text-3xl">👶</span>
                         <span class="font-bold text-sm">Criança</span>
-                        <span class="text-xs opacity-70">10 – 12 anos</span>
+                        <span class="text-xs opacity-70 font-normal">10 – 12 anos</span>
                     </button>
                     <button id="faixa-jovem" onclick="toggleFaixa('jovem')"
-                        class="bg-gray-700 text-gray-300 rounded-2xl p-4 flex flex-col items-center gap-1 transition active:scale-95">
+                        class="btn btn-outline flex-col h-auto py-3 gap-1">
                         <span class="text-3xl">🧑</span>
                         <span class="font-bold text-sm">Jovem</span>
-                        <span class="text-xs opacity-70">13 – 17 anos</span>
+                        <span class="text-xs opacity-70 font-normal">13 – 17 anos</span>
                     </button>
                     <button id="faixa-adulto" onclick="toggleFaixa('adulto')"
-                        class="bg-gray-700 text-gray-300 rounded-2xl p-4 flex flex-col items-center gap-1 transition active:scale-95">
+                        class="btn btn-outline flex-col h-auto py-3 gap-1">
                         <span class="text-3xl">🧑‍💼</span>
                         <span class="font-bold text-sm">Adulto</span>
-                        <span class="text-xs opacity-70">18 – 59 anos</span>
+                        <span class="text-xs opacity-70 font-normal">18 – 59 anos</span>
                     </button>
                     <button id="faixa-idoso" onclick="toggleFaixa('idoso')"
-                        class="bg-gray-700 text-gray-300 rounded-2xl p-4 flex flex-col items-center gap-1 transition active:scale-95">
+                        class="btn btn-outline flex-col h-auto py-3 gap-1">
                         <span class="text-3xl">👴</span>
                         <span class="font-bold text-sm">Idoso</span>
-                        <span class="text-xs opacity-70">60+ anos</span>
+                        <span class="text-xs opacity-70 font-normal">60+ anos</span>
                     </button>
                 </div>
-                <div id="aviso-kids" class="hidden mt-3 bg-blue-900 border border-blue-600 rounded-xl px-4 py-3 flex items-start gap-2">
-                    <span class="shrink-0">🧒</span>
-                    <p class="text-blue-200 text-xs leading-relaxed"><strong>Modo Kids ativado</strong> — seu filho verá linguagem simplificada e apenas os projetos mais importantes.</p>
+                <div id="aviso-kids" class="hidden mt-3 alert alert-info py-2">
+                    <span class="text-xs">🧒 <strong>Modo Kids ativado</strong> — seu filho verá linguagem simplificada e apenas os projetos mais importantes.</span>
                 </div>
             </section>
 
             <!-- 2. Estado -->
             <section>
-                <label for="perfil-estado" class="text-gray-300 font-bold text-sm block mb-3">
-                    Estado <span class="text-gray-500 font-normal">(opcional)</span>
+                <label for="perfil-estado" class="font-bold text-sm block mb-3">
+                    Estado <span class="text-base-content/50 font-normal">(opcional)</span>
                 </label>
-                <select id="perfil-estado"
-                    class="w-full bg-gray-700 text-white rounded-xl px-4 py-3 text-sm border border-gray-600 focus:outline-none focus:border-gray-400 cursor-pointer">
+                <select id="perfil-estado" class="select select-bordered w-full text-sm">
                     <option value="">-- Selecione seu estado --</option>
                     <option value="AC">Acre</option>
                     <option value="AL">Alagoas</option>
@@ -194,159 +189,106 @@
 
             <!-- 3. Temas de interesse -->
             <section>
-                <p class="text-gray-300 font-bold text-sm mb-3">Temas de interesse <span class="text-gray-500 font-normal">(opcional)</span></p>
+                <p class="font-bold text-sm mb-3">Temas de interesse <span class="text-base-content/50 font-normal">(opcional)</span></p>
                 <div class="grid grid-cols-2 gap-2">
-                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
-                        <input type="checkbox" id="tema-Trabalho" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
-                        <span class="text-sm text-gray-200">💼 Trabalho</span>
+                    <label class="label cursor-pointer bg-base-200 rounded-xl px-3 py-2 gap-2 justify-start">
+                        <input type="checkbox" id="tema-Trabalho"     class="checkbox checkbox-primary checkbox-sm"><span class="label-text">💼 Trabalho</span>
                     </label>
-                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
-                        <input type="checkbox" id="tema-Impostos" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
-                        <span class="text-sm text-gray-200">💰 Impostos</span>
+                    <label class="label cursor-pointer bg-base-200 rounded-xl px-3 py-2 gap-2 justify-start">
+                        <input type="checkbox" id="tema-Impostos"     class="checkbox checkbox-primary checkbox-sm"><span class="label-text">💰 Impostos</span>
                     </label>
-                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
-                        <input type="checkbox" id="tema-Saude" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
-                        <span class="text-sm text-gray-200">🏥 Saúde</span>
+                    <label class="label cursor-pointer bg-base-200 rounded-xl px-3 py-2 gap-2 justify-start">
+                        <input type="checkbox" id="tema-Saude"        class="checkbox checkbox-primary checkbox-sm"><span class="label-text">🏥 Saúde</span>
                     </label>
-                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
-                        <input type="checkbox" id="tema-Educacao" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
-                        <span class="text-sm text-gray-200">📚 Educação</span>
+                    <label class="label cursor-pointer bg-base-200 rounded-xl px-3 py-2 gap-2 justify-start">
+                        <input type="checkbox" id="tema-Educacao"     class="checkbox checkbox-primary checkbox-sm"><span class="label-text">📚 Educação</span>
                     </label>
-                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
-                        <input type="checkbox" id="tema-Seguranca" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
-                        <span class="text-sm text-gray-200">🛡️ Segurança</span>
+                    <label class="label cursor-pointer bg-base-200 rounded-xl px-3 py-2 gap-2 justify-start">
+                        <input type="checkbox" id="tema-Seguranca"    class="checkbox checkbox-primary checkbox-sm"><span class="label-text">🛡️ Segurança</span>
                     </label>
-                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
-                        <input type="checkbox" id="tema-Previdencia" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
-                        <span class="text-sm text-gray-200">🏦 Previdência</span>
+                    <label class="label cursor-pointer bg-base-200 rounded-xl px-3 py-2 gap-2 justify-start">
+                        <input type="checkbox" id="tema-Previdencia"  class="checkbox checkbox-primary checkbox-sm"><span class="label-text">🏦 Previdência</span>
                     </label>
-                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
-                        <input type="checkbox" id="tema-Meio-Ambiente" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
-                        <span class="text-sm text-gray-200">🌿 Meio Ambiente</span>
+                    <label class="label cursor-pointer bg-base-200 rounded-xl px-3 py-2 gap-2 justify-start">
+                        <input type="checkbox" id="tema-Meio-Ambiente" class="checkbox checkbox-primary checkbox-sm"><span class="label-text">🌿 Meio Ambiente</span>
                     </label>
-                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
-                        <input type="checkbox" id="tema-Tecnologia" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
-                        <span class="text-sm text-gray-200">💻 Tecnologia</span>
+                    <label class="label cursor-pointer bg-base-200 rounded-xl px-3 py-2 gap-2 justify-start">
+                        <input type="checkbox" id="tema-Tecnologia"   class="checkbox checkbox-primary checkbox-sm"><span class="label-text">💻 Tecnologia</span>
                     </label>
-                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
-                        <input type="checkbox" id="tema-Habitacao" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
-                        <span class="text-sm text-gray-200">🏠 Habitação</span>
+                    <label class="label cursor-pointer bg-base-200 rounded-xl px-3 py-2 gap-2 justify-start">
+                        <input type="checkbox" id="tema-Habitacao"    class="checkbox checkbox-primary checkbox-sm"><span class="label-text">🏠 Habitação</span>
                     </label>
-                    <label class="flex items-center gap-2.5 bg-gray-700 rounded-xl px-3 py-2.5 cursor-pointer">
-                        <input type="checkbox" id="tema-Transporte" class="w-4 h-4 accent-blue-500 cursor-pointer shrink-0">
-                        <span class="text-sm text-gray-200">🚌 Transporte</span>
+                    <label class="label cursor-pointer bg-base-200 rounded-xl px-3 py-2 gap-2 justify-start">
+                        <input type="checkbox" id="tema-Transporte"   class="checkbox checkbox-primary checkbox-sm"><span class="label-text">🚌 Transporte</span>
                     </label>
                 </div>
             </section>
 
             <!-- 4. PcD -->
             <section>
-                <p class="text-gray-300 font-bold text-sm mb-3">Pessoa com Deficiência (PcD) <span class="text-gray-500 font-normal">(opcional)</span></p>
+                <p class="font-bold text-sm mb-3">Pessoa com Deficiência (PcD) <span class="text-base-content/50 font-normal">(opcional)</span></p>
                 <div class="flex gap-3 mb-3">
-                    <button id="pcd-nao" onclick="setPcd(false)"
-                        class="flex-1 py-2.5 rounded-xl text-sm font-bold transition active:scale-95 bg-gray-700 text-gray-300">
-                        Não
-                    </button>
-                    <button id="pcd-sim" onclick="setPcd(true)"
-                        class="flex-1 py-2.5 rounded-xl text-sm font-bold transition active:scale-95 bg-gray-700 text-gray-300">
-                        Sim
-                    </button>
+                    <button id="pcd-nao" onclick="setPcd(false)" class="btn btn-outline flex-1">Não</button>
+                    <button id="pcd-sim" onclick="setPcd(true)"  class="btn btn-outline flex-1">Sim</button>
                 </div>
                 <div id="pcd-campo" class="hidden">
                     <input id="perfil-pcd-descricao" type="text"
                         placeholder="Qual deficiência? (opcional)"
-                        class="w-full bg-gray-700 text-white rounded-xl px-4 py-3 text-sm border border-gray-600 focus:outline-none focus:border-gray-400 placeholder-gray-500" />
+                        class="input input-bordered w-full text-sm" />
                 </div>
             </section>
 
-            <!-- Feedback -->
-            <p id="perfil-feedback" class="text-green-400 text-sm font-bold text-center -mt-2" style="opacity:0;transition:opacity .4s;"></p>
+            <p id="perfil-feedback" class="text-success text-sm font-bold text-center -mt-2" style="opacity:0;transition:opacity .4s;"></p>
 
-            <!-- Ações -->
             <div class="flex flex-col gap-3">
-                <button onclick="salvarPerfil()"
-                    class="bg-green-600 hover:bg-green-500 active:scale-95 transition w-full py-3.5 rounded-2xl text-base font-black">
-                    💾 Salvar perfil
-                </button>
-                <button onclick="limparPerfil()"
-                    class="bg-gray-700 hover:bg-gray-600 active:scale-95 transition w-full py-3 rounded-2xl text-sm font-bold text-gray-400">
-                    🗑️ Limpar perfil
-                </button>
+                <button onclick="salvarPerfil()" class="btn btn-success w-full">💾 Salvar perfil</button>
+                <button onclick="limparPerfil()" class="btn btn-ghost w-full text-sm text-base-content/40">🗑️ Limpar perfil</button>
             </div>
 
-        </div><!-- /formulário -->
-    </div><!-- /tela-perfil -->
-
-    <!-- ── TELA WRAPPED CÍVICO ──────────────────────────────────────────────── -->
-    <div id="tela-wrapped" class="hidden fixed inset-0 z-40 bg-gray-950 flex-col items-center justify-center p-4 overflow-y-auto">
-
-        <!-- Header -->
-        <div class="w-full max-w-sm flex items-center justify-between mb-5">
-            <span class="text-white font-black text-lg">🎁 Wrapped Cívico</span>
-            <button onclick="fecharWrapped()"
-                class="text-gray-400 hover:text-white text-xl w-10 h-10 flex items-center justify-center rounded-full bg-gray-800 transition">✕</button>
         </div>
+    </div>
+</div>
 
-        <!-- Dots de progresso -->
-        <div id="wrapped-dots" class="flex gap-2 mb-5"></div>
-
-        <!-- Card principal -->
-        <div id="wrapped-card" class="w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center flex flex-col items-center justify-center" style="min-height:420px;"></div>
-
-        <!-- Navegação -->
-        <div id="wrapped-nav" class="flex gap-4 mt-6 items-center">
-            <button id="wrapped-prev" onclick="navegarWrapped(-1)"
-                class="bg-gray-700 hover:bg-gray-600 text-white px-5 py-2.5 rounded-full text-sm font-bold transition">
-                ← Anterior
-            </button>
-            <button id="wrapped-next" onclick="navegarWrapped(1)"
-                class="bg-white text-gray-900 px-5 py-2.5 rounded-full text-sm font-bold transition hover:bg-gray-100">
-                Próximo →
-            </button>
+<!-- ── TELA WRAPPED (modal fullscreen) ───────────────────────────────────── -->
+<div id="tela-wrapped" class="hidden fixed inset-0 z-50 bg-base-300 flex-col overflow-y-auto">
+    <div class="flex flex-col items-center px-4 py-6 min-h-full">
+        <div class="w-full max-w-sm flex items-center justify-between mb-4">
+            <span class="font-black text-lg">🎁 Wrapped Cívico</span>
+            <button onclick="fecharWrapped()" class="btn btn-ghost btn-sm btn-circle text-lg font-bold">✕</button>
         </div>
-
-        <!-- Ações -->
-        <div id="wrapped-actions" class="flex gap-3 mt-4 flex-wrap justify-center pb-6">
-            <button onclick="salvarImagemWrapped()"
-                class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-full text-sm font-bold transition">
-                📸 Salvar imagem
-            </button>
-            <button onclick="compartilharWhatsApp()"
-                class="bg-green-700 hover:bg-green-600 text-white px-4 py-2 rounded-full text-sm font-bold transition">
-                📤 Compartilhar no WhatsApp
-            </button>
+        <div id="wrapped-dots" class="flex gap-2 mb-4"></div>
+        <div id="wrapped-card" class="w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center flex flex-col items-center justify-center" style="min-height:400px;"></div>
+        <div id="wrapped-nav" class="flex gap-4 mt-5 items-center">
+            <button id="wrapped-prev" onclick="navegarWrapped(-1)" class="btn btn-ghost btn-sm">← Anterior</button>
+            <button id="wrapped-next" onclick="navegarWrapped(1)"  class="btn btn-primary btn-sm">Próximo →</button>
         </div>
-
-    </div><!-- /tela-wrapped -->
-
-    <!-- ── TELA REVISÃO ──────────────────────────────────────────────────────── -->
-    <div id="tela-revisao" class="hidden fixed inset-0 flex-col" style="z-index:60;background:#030712;">
-
-        <!-- Cabeçalho -->
-        <div class="flex items-center gap-3 px-4 pt-4 pb-3 border-b border-gray-800 shrink-0" style="background:#111827">
-            <button onclick="fecharRevisao()"
-                class="bg-gray-700 hover:bg-gray-600 active:scale-90 transition px-4 py-2 rounded-full text-sm font-bold text-white shrink-0">
-                ← Voltar
-            </button>
-            <p id="revisao-titulo" class="text-gray-200 font-bold text-sm truncate"></p>
+        <div id="wrapped-actions" class="flex gap-3 mt-3 flex-wrap justify-center pb-4">
+            <button onclick="salvarImagemWrapped()"  class="btn btn-ghost btn-sm">📸 Salvar imagem</button>
+            <button onclick="compartilharWhatsApp()" class="btn btn-success btn-sm">📤 Compartilhar</button>
         </div>
+    </div>
+</div>
 
-        <!-- Card -->
-        <div class="flex-1 flex items-center justify-center p-4 overflow-hidden">
-            <div id="revisao-container" class="relative w-full max-w-sm" style="height:520px;"></div>
-        </div>
+<!-- ── TELA REVISÃO (modal fullscreen, z maior) ──────────────────────────── -->
+<div id="tela-revisao" class="hidden fixed inset-0 flex-col bg-base-100" style="z-index:60;">
+    <div class="flex items-center gap-2 px-4 py-3 bg-base-200 border-b border-base-300 shrink-0">
+        <button onclick="fecharRevisao()" class="btn btn-ghost btn-sm">← Voltar</button>
+        <p id="revisao-titulo" class="font-bold text-sm truncate flex-1 text-base-content/80"></p>
+        <button onclick="fecharRevisao()" class="btn btn-ghost btn-sm btn-circle text-lg font-bold shrink-0">✕</button>
+    </div>
+    <div class="flex-1 flex items-center justify-center p-4 overflow-hidden">
+        <div id="revisao-container" class="relative w-full max-w-sm" style="height:460px;"></div>
+    </div>
+    <p id="revisao-feedback" class="text-center font-bold text-sm pb-4 h-8 transition-opacity" style="color:transparent"></p>
+</div>
 
-        <!-- Feedback -->
-        <p id="revisao-feedback" class="text-center font-bold text-sm pb-5 h-10 transition-opacity" style="color:transparent"></p>
-
-    </div><!-- /tela-revisao -->
-
-    <script>
+<script>
     // ── CONFIGURAÇÃO ────────────────────────────────────────────────────────
     const API_DIRETA   = 'https://dadosabertos.camara.leg.br/api/v2';
     const PROXY        = 'https://corsproxy.io/?';
     const TIPOS        = ['PL', 'PEC', 'MPV'];
     const ITENS        = 15;
+    const N_MAIN_CARDS = 4;
     const LISTA_CURADA = [2485341, 2487436, 2477340, 2358548, 2434493];
 
     const TEXTOS_KIDS = {
@@ -409,13 +351,9 @@
     let _revisaoOuro      = false;
 
     // ── LOCALSTORAGE ─────────────────────────────────────────────────────────
-    // vv_votos   : { [id]: { titulo, ementa, categoria, data } }   — último voto por lei
-    // vv_ranking : { [id]: { titulo, ementa, voto, veto, inegociavel_voto,
-    //                        inegociavel_veto, abstencao } }        — contagens acumuladas
     function salvarVoto(prop, categoria) {
         const id = String(prop.id);
 
-        // Registro individual (última decisão)
         const votos = JSON.parse(localStorage.getItem('vv_votos') || '{}');
         votos[id] = {
             titulo:    `${prop.siglaTipo} ${prop.numero}/${prop.ano}`,
@@ -425,22 +363,16 @@
         };
         localStorage.setItem('vv_votos', JSON.stringify(votos));
 
-        // Histórico cronológico (append-only)
         const historico = JSON.parse(localStorage.getItem('vv_historico') || '[]');
         historico.push({ id, titulo: votos[id].titulo, ementa: prop.ementa || '', categoria, data: votos[id].data });
         localStorage.setItem('vv_historico', JSON.stringify(historico));
 
-        // Contagens para o ranking
         const ranking = JSON.parse(localStorage.getItem('vv_ranking') || '{}');
         if (!ranking[id]) {
             ranking[id] = {
-                titulo:           `${prop.siglaTipo} ${prop.numero}/${prop.ano}`,
-                ementa:           prop.ementa || '',
-                voto:             0,
-                veto:             0,
-                inegociavel_voto: 0,
-                inegociavel_veto: 0,
-                abstencao:        0
+                titulo: `${prop.siglaTipo} ${prop.numero}/${prop.ano}`,
+                ementa: prop.ementa || '',
+                voto: 0, veto: 0, inegociavel_voto: 0, inegociavel_veto: 0, abstencao: 0
             };
         }
         ranking[id][categoria] = (ranking[id][categoria] || 0) + 1;
@@ -455,7 +387,6 @@
             const votosDeputados = JSON.parse(localStorage.getItem('vv_votos_deputados') || '{}');
             const historico      = JSON.parse(localStorage.getItem('vv_historico')       || '[]');
 
-            // Último voto do usuário por lei curada (historico é append-only, varrer ao contrário)
             const votosUsuario = {};
             for (const item of [...historico].reverse()) {
                 if (LISTA_CURADA.includes(Number(item.id)) && !votosUsuario[item.id]) {
@@ -477,14 +408,9 @@
                 for (const dep of votos) {
                     const key = String(dep.idDeputado);
                     if (!acum[key]) {
-                        acum[key] = {
-                            idDeputado:       dep.idDeputado,
-                            nomeDeputado:     dep.nomeDeputado,
-                            siglaPartido:     dep.siglaPartido,
-                            siglaUf:          dep.siglaUf,
-                            totalLeis:        0,
-                            totalCompativeis: 0
-                        };
+                        acum[key] = { idDeputado: dep.idDeputado, nomeDeputado: dep.nomeDeputado,
+                                      siglaPartido: dep.siglaPartido, siglaUf: dep.siglaUf,
+                                      totalLeis: 0, totalCompativeis: 0 };
                     }
                     acum[key].totalLeis++;
                     if (compativel(userCat, dep.voto)) acum[key].totalCompativeis++;
@@ -507,8 +433,7 @@
             if (r.ok) return await r.json();
         } catch (_) {}
 
-        const r = await fetch(PROXY + encodeURIComponent(url),
-                              { signal: AbortSignal.timeout(8000) });
+        const r = await fetch(PROXY + encodeURIComponent(url), { signal: AbortSignal.timeout(8000) });
         if (!r.ok) throw new Error('proxy falhou');
         const txt = await r.text();
         try { return JSON.parse(txt); }
@@ -551,6 +476,7 @@
             proposicoes = json.dados;
             idx    = 0;
             pagina++;
+            _setFooterEnabled(true);
             atualizarStatus();
             renderizarCard();
         } catch (e) {
@@ -641,27 +567,30 @@
         return pts.slice(0, 3);
     }
 
+    // ── HTML DOS SUB-CARDS ────────────────────────────────────────────────────
     function htmlSubCard(n, p) {
         const kids      = modoKids();
         const isCurada  = LISTA_CURADA.includes(Number(p.id));
         const textoKids = (kids && isCurada && TEXTOS_KIDS[p.id]) ? TEXTOS_KIDS[p.id] : null;
         const ementa    = p.ementa || '';
         const data      = p.dataApresentacao ? new Date(p.dataApresentacao).toLocaleDateString('pt-BR') : '–';
-        const titulo    = `${p.siglaTipo} nº ${p.numero}/${p.ano}`;
+        const titulo    = `${p.siglaTipo} nº ${p.numero}/${p.ano}`;
         const tituloTxt = `${p.siglaTipo} nº ${p.numero}/${p.ano}`;
 
         switch (n) {
             case 0: {
                 const imgUrl = unsplashUrl(ementa);
-                return `<div class="flex flex-col h-full" style="background:#1f2937">
-                    <div style="height:338px;flex-shrink:0;overflow:hidden;background:linear-gradient(135deg,#374151,#1f2937)">
-                        <img src="${imgUrl}" alt="" class="w-full h-full object-cover" loading="lazy"
-                             onerror="this.style.opacity='0'" style="transition:opacity .3s" />
-                    </div>
-                    <div class="flex-1 px-6 py-5 flex flex-col justify-center" style="background:rgba(0,0,0,.82)">
-                        <p class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">${p.siglaTipo} ${p.numero} · ${p.ano}</p>
-                        <h2 class="text-white font-black text-xl leading-snug">${titulo}</h2>
-                        <p class="text-gray-500 text-xs mt-1">Apresentado em ${data}</p>
+                const kidsBadge = textoKids
+                    ? `<span class="badge badge-info badge-sm mb-2">🧒 Modo Kids</span>`
+                    : '';
+                return `<div class="relative h-full"
+                    style="background-image:url('${imgUrl}');background-size:cover;background-position:center;">
+                    <div class="absolute inset-0" style="background:linear-gradient(to bottom,rgba(0,0,0,.05) 0%,rgba(0,0,0,.82) 65%)"></div>
+                    <div class="absolute bottom-0 left-0 right-0 p-5 pb-6">
+                        ${kidsBadge}
+                        <p class="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">${p.siglaTipo} ${p.numero} · ${p.ano}</p>
+                        <h2 class="text-white font-black text-2xl leading-snug">${titulo}</h2>
+                        <p class="text-white/50 text-xs mt-1">Apresentado em ${data}</p>
                     </div>
                 </div>`;
             }
@@ -669,66 +598,82 @@
                 const ementaExib = textoKids ? textoKids
                     : (ementa.length > 360 ? ementa.slice(0, 360) + '…' : ementa);
                 const badgeKids = textoKids
-                    ? `<span class="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 mb-3 inline-block">🧒 Modo Kids</span><br>`
+                    ? `<div class="badge badge-info mb-3">🧒 Modo Kids</div>`
                     : '';
-                return `<div class="flex flex-col h-full bg-white px-6 pb-5 pt-14">
-                    <p class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-3">Entenda em 1 minuto</p>
-                    <div class="flex-1 overflow-y-auto text-gray-700 text-sm leading-relaxed">${badgeKids}${ementaExib}</div>
-                    <a href="https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${p.id}"
-                       target="_blank" rel="noopener"
-                       class="text-blue-500 text-xs underline mt-3 block pt-2 border-t border-gray-100">
-                        🔗 Ver tramitação completa na Câmara
-                    </a>
+                return `<div class="flex flex-col h-full bg-base-100" style="padding-top:40px">
+                    <div class="px-5 pb-2 flex gap-1.5 flex-wrap">
+                        <span class="badge badge-outline badge-sm">${p.siglaTipo} ${p.numero}/${p.ano}</span>
+                        <span class="badge badge-outline badge-sm">📅 ${data}</span>
+                    </div>
+                    <div class="flex-1 overflow-y-auto px-5 py-2">
+                        <p class="text-xs text-base-content/50 font-bold uppercase tracking-widest mb-2">Entenda em 1 minuto</p>
+                        ${badgeKids}
+                        <p class="text-sm leading-relaxed text-base-content">${ementaExib}</p>
+                    </div>
+                    <div class="px-5 pb-4 pt-2 border-t border-base-300">
+                        <a href="https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${p.id}"
+                           target="_blank" rel="noopener"
+                           class="link link-primary text-xs">🔗 Ver tramitação completa na Câmara</a>
+                    </div>
                 </div>`;
             }
             case 2: {
                 const pts = gerarPositivos(ementa);
-                return `<div class="flex flex-col h-full px-6 pb-5 pt-14" style="background:#f0fdf4">
-                    <p class="font-black text-lg mb-5" style="color:#14532d">O que pode melhorar</p>
-                    <div class="flex flex-col gap-4 flex-1">
-                        ${pts.map(pt => `<div class="flex items-start gap-3"><span class="text-xl mt-0.5 shrink-0">✅</span><p class="text-sm leading-relaxed" style="color:#166534">${pt}</p></div>`).join('')}
+                return `<div class="flex flex-col h-full px-5 pb-5" style="padding-top:40px;background:#f0fdf4">
+                    <p class="font-black text-lg mb-4" style="color:#14532d">O que pode melhorar</p>
+                    <div class="flex flex-col gap-3 flex-1">
+                        ${pts.map(pt => `
+                        <div class="flex items-start gap-3 rounded-2xl p-3" style="background:#dcfce7">
+                            <span class="text-xl mt-0.5 shrink-0">✅</span>
+                            <p class="text-sm leading-relaxed" style="color:#166534">${pt}</p>
+                        </div>`).join('')}
                     </div>
                 </div>`;
             }
             case 3: {
                 const pts = gerarNegativos(ementa);
-                return `<div class="flex flex-col h-full px-6 pb-5 pt-14" style="background:#fff1f2">
-                    <p class="font-black text-lg mb-5" style="color:#7f1d1d">Pontos de atenção</p>
-                    <div class="flex flex-col gap-4 flex-1">
-                        ${pts.map(pt => `<div class="flex items-start gap-3"><span class="text-xl mt-0.5 shrink-0">⚠️</span><p class="text-sm leading-relaxed" style="color:#991b1b">${pt}</p></div>`).join('')}
+                return `<div class="flex flex-col h-full px-5 pb-5" style="padding-top:40px;background:#fff1f2">
+                    <p class="font-black text-lg mb-4" style="color:#7f1d1d">Pontos de atenção</p>
+                    <div class="flex flex-col gap-3 flex-1">
+                        ${pts.map(pt => `
+                        <div class="flex items-start gap-3 rounded-2xl p-3" style="background:#ffe4e6">
+                            <span class="text-xl mt-0.5 shrink-0">⚠️</span>
+                            <p class="text-sm leading-relaxed" style="color:#991b1b">${pt}</p>
+                        </div>`).join('')}
                     </div>
                 </div>`;
             }
             case 4: {
+                // Used only in review screen
                 const bVeto = 'bg-red-600 hover:bg-red-500 active:scale-90 transition p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl' + (ouroAtivado ? ' btn-pulse' : '');
                 const bVoto = 'bg-green-600 hover:bg-green-500 active:scale-90 transition p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl' + (ouroAtivado ? ' btn-pulse' : '');
                 const bOuro = 'bg-yellow-400 hover:bg-yellow-300 active:scale-90 transition p-4 rounded-full w-20 h-20 flex items-center justify-center shadow-lg border-4 border-yellow-200 text-3xl' + (ouroAtivado ? ' opacity-50' : '');
                 const goldHint = ouroAtivado
                     ? `<div class="rounded-2xl px-4 py-2.5 text-center mb-3" style="background:rgba(120,80,0,.35);border:1px solid #d97706"><p class="text-yellow-300 text-sm font-bold">🪙 Inegociável ativado! Escolha ✔️ ou ✖️</p></div>`
-                    : `<div class="rounded-2xl px-4 py-2.5 text-center mb-3 bg-gray-700"><p class="text-gray-400 text-xs">💡 Use 🪙 antes de votar para marcar como inegociável</p></div>`;
-                return `<div class="flex flex-col h-full bg-gray-800 px-6 pb-6 pt-14">
+                    : `<div class="rounded-2xl px-4 py-2.5 text-center mb-3 bg-base-300"><p class="text-base-content/50 text-xs">💡 Use 🪙 antes de votar para marcar como inegociável</p></div>`;
+                return `<div class="flex flex-col h-full bg-base-200 px-6 pb-6 pt-14">
                     <div class="text-center mb-2">
-                        <p class="text-gray-400 text-xs uppercase tracking-widest mb-1">Como você decide?</p>
-                        <p class="text-white font-bold text-sm">${tituloTxt}</p>
+                        <p class="text-base-content/50 text-xs uppercase tracking-widest mb-1">Como você decide?</p>
+                        <p class="text-base-content font-bold text-sm">${tituloTxt}</p>
                     </div>
                     ${goldHint}
                     <div class="flex-1 flex items-center justify-center">
                         <div class="flex gap-4 items-end">
                             <div class="flex flex-col items-center gap-2">
                                 <button id="btn-veto" onclick="acionar('veto')" class="${bVeto}" title="Vetar">✖️</button>
-                                <span class="text-gray-400 text-xs font-bold">Vetar</span>
+                                <span class="text-base-content/50 text-xs font-bold">Vetar</span>
                             </div>
                             <div class="flex flex-col items-center gap-2">
                                 <button id="btn-ouro" onclick="acionar('ouro')" class="${bOuro}" title="Moeda de Ouro">🪙</button>
-                                <span class="text-gray-400 text-xs font-bold">Inegociável</span>
+                                <span class="text-base-content/50 text-xs font-bold">Inegociável</span>
                             </div>
                             <div class="flex flex-col items-center gap-2">
                                 <button id="btn-voto" onclick="acionar('voto')" class="${bVoto}" title="Votar">✔️</button>
-                                <span class="text-gray-400 text-xs font-bold">Votar</span>
+                                <span class="text-base-content/50 text-xs font-bold">Votar</span>
                             </div>
                             <div class="flex flex-col items-center gap-2">
-                                <button id="btn-abstencao" onclick="abster()" class="bg-gray-600 hover:bg-gray-500 active:scale-90 transition p-3 rounded-full w-12 h-12 flex items-center justify-center shadow-lg text-xl" title="Depois">⏭️</button>
-                                <span class="text-gray-400 text-xs font-bold">Depois</span>
+                                <button id="btn-abstencao" onclick="abster()" class="bg-base-300 hover:bg-base-100 active:scale-90 transition p-3 rounded-full w-12 h-12 flex items-center justify-center shadow-lg text-xl" title="Depois">⏭️</button>
+                                <span class="text-base-content/50 text-xs font-bold">Depois</span>
                             </div>
                         </div>
                     </div>
@@ -738,12 +683,13 @@
         return '';
     }
 
+    // ── RENDERIZAR SUB-CARD (tela principal, 4 cards) ─────────────────────────
     function renderizarSubCard() {
         const p = proposicoes[idx];
 
         const dots = document.getElementById('sub-dots');
         if (dots) {
-            dots.innerHTML = Array.from({length: 5}, (_, i) =>
+            dots.innerHTML = Array.from({length: N_MAIN_CARDS}, (_, i) =>
                 `<div class="w-2 h-2 rounded-full transition-all" style="background:${i === _cardIdx ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.3)'}"></div>`
             ).join('');
         }
@@ -751,7 +697,7 @@
         const prev = document.getElementById('sub-prev');
         const next = document.getElementById('sub-next');
         if (prev) prev.style.visibility = _cardIdx === 0 ? 'hidden' : '';
-        if (next) next.style.visibility = _cardIdx === 4 ? 'hidden' : '';
+        if (next) next.style.visibility = _cardIdx === N_MAIN_CARDS - 1 ? 'hidden' : '';
 
         const content = document.getElementById('sub-card-content');
         if (content) content.innerHTML = htmlSubCard(_cardIdx, p);
@@ -759,7 +705,7 @@
 
     function navegarSubCard(dir) {
         const novo = _cardIdx + dir;
-        if (novo < 0 || novo > 4) return;
+        if (novo < 0 || novo > N_MAIN_CARDS - 1) return;
         _cardIdx = novo;
         renderizarSubCard();
     }
@@ -773,9 +719,10 @@
         }
 
         _cardIdx = 0;
+        _setFooterEnabled(true);
 
         container.innerHTML = `
-        <div id="main-card" class="card relative rounded-3xl shadow-2xl overflow-hidden" style="height:520px;">
+        <div id="main-card" class="card-law relative rounded-3xl shadow-2xl overflow-hidden" style="height:460px;">
             <button onclick="navegarSubCard(-1)" id="sub-prev"
                 class="absolute top-3 left-3 z-20 w-8 h-8 rounded-full flex items-center justify-center text-white text-xl font-bold transition"
                 style="background:rgba(0,0,0,.4);">‹</button>
@@ -787,52 +734,77 @@
             <div id="sub-card-content" class="w-full h-full"></div>
         </div>`;
 
-        if (ouroAtivado) document.getElementById('main-card').classList.add('gold-glow');
         renderizarSubCard();
     }
 
     function mostrarSkeleton() {
+        _setFooterEnabled(false);
         document.getElementById('card-container').innerHTML = `
-            <div class="bg-white rounded-3xl shadow-2xl flex flex-col gap-3 p-6" style="height:490px;">
-                <div class="skeleton h-5 w-2/5"></div>
-                <div class="skeleton h-8 w-4/5 mt-2"></div>
-                <div class="skeleton h-4 w-full mt-4"></div>
-                <div class="skeleton h-4 w-full"></div>
-                <div class="skeleton h-4 w-3/4"></div>
-                <div class="skeleton h-4 w-full"></div>
-                <div class="skeleton h-4 w-5/6"></div>
-                <div class="mt-auto skeleton h-16 w-full rounded-2xl"></div>
+            <div class="bg-base-200 rounded-3xl shadow-2xl flex flex-col gap-3 p-6" style="height:460px;">
+                <div class="skel bg-base-300 h-5 w-2/5"></div>
+                <div class="skel bg-base-300 h-8 w-4/5 mt-2"></div>
+                <div class="skel bg-base-300 h-4 w-full mt-4"></div>
+                <div class="skel bg-base-300 h-4 w-full"></div>
+                <div class="skel bg-base-300 h-4 w-3/4"></div>
+                <div class="skel bg-base-300 h-4 w-full"></div>
+                <div class="skel bg-base-300 h-4 w-5/6"></div>
+                <div class="mt-auto skel bg-base-300 h-16 w-full rounded-2xl"></div>
             </div>`;
         document.getElementById('status-text').innerText = 'Buscando projetos de lei...';
     }
 
     function mostrarErro() {
+        _setFooterEnabled(false);
         document.getElementById('card-container').innerHTML = `
-            <div class="bg-white rounded-3xl shadow-2xl flex flex-col items-center justify-center gap-4 p-8 text-center" style="height:490px;">
+            <div class="bg-base-200 rounded-3xl shadow-2xl flex flex-col items-center justify-center gap-4 p-8 text-center" style="height:460px;">
                 <span class="text-4xl">⚠️</span>
-                <h2 class="text-gray-800 font-bold text-lg">Não foi possível conectar à API da Câmara</h2>
-                <p class="text-gray-500 text-sm">Verifique sua conexão e tente novamente.</p>
-                <button onclick="carregarProposicoes()"
-                    class="bg-blue-600 text-white px-6 py-2 rounded-full text-sm font-bold">
+                <h2 class="font-bold text-lg">Não foi possível conectar à API da Câmara</h2>
+                <p class="text-base-content/50 text-sm">Verifique sua conexão e tente novamente.</p>
+                <button onclick="carregarProposicoes()" class="btn btn-primary btn-sm">
                     Tentar novamente
                 </button>
             </div>`;
     }
 
     function mostrarFimKids() {
+        _setFooterEnabled(false);
         document.getElementById('card-container').innerHTML = `
             <div class="rounded-3xl shadow-2xl flex flex-col items-center justify-center gap-4 p-8 text-center text-white"
-                 style="height:490px;background:linear-gradient(135deg,#60a5fa,#a78bfa);">
+                 style="height:460px;background:linear-gradient(135deg,#60a5fa,#a78bfa);">
                 <span class="text-6xl">🎉</span>
                 <h2 class="font-black text-xl leading-snug">Você votou em todas as leis importantes por agora!</h2>
                 <p class="text-blue-100 text-sm">Volte em breve para novas leis.</p>
-                <button onclick="abrirHistorico()"
-                    class="mt-2 bg-white text-blue-600 font-black px-6 py-2.5 rounded-full text-sm shadow">
+                <button onclick="abrirHistorico()" class="mt-2 bg-white text-blue-600 font-black px-6 py-2.5 rounded-full text-sm shadow">
                     📋 Ver meu histórico
                 </button>
             </div>`;
         document.getElementById('status-text').innerText = '🧒 Modo Kids';
         document.getElementById('contador').innerText = '';
+    }
+
+    // ── CONTROLE DO RODAPÉ ───────────────────────────────────────────────────
+    function _setFooterEnabled(enabled) {
+        ['btn-veto','btn-ouro','btn-voto','btn-abstencao'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.disabled = !enabled;
+        });
+    }
+
+    function _atualizarRodapeOuro() {
+        const rodape = document.getElementById('rodape-acoes');
+        const hint   = document.getElementById('rodape-ouro-hint');
+        const btnOuro = document.getElementById('btn-ouro');
+        if (ouroAtivado) {
+            rodape.style.background  = '#78350f';
+            rodape.style.borderColor = '#d97706';
+            hint.classList.remove('hidden');
+            if (btnOuro) btnOuro.classList.add('btn-pulse');
+        } else {
+            rodape.style.background  = '';
+            rodape.style.borderColor = '';
+            hint.classList.add('hidden');
+            if (btnOuro) btnOuro.classList.remove('btn-pulse');
+        }
     }
 
     // ── MECÂNICA DA MOEDA DE OURO ────────────────────────────────────────────
@@ -888,24 +860,18 @@
     }
 
     function ativarOuro() {
-        if (ouroAtivado) {
-            ouroAtivado = false;
-            const card = document.getElementById('main-card');
-            if (card) card.classList.remove('gold-glow');
-            if (_cardIdx === 4) renderizarSubCard();
+        ouroAtivado = !ouroAtivado;
+        if (!ouroAtivado) {
+            _atualizarRodapeOuro();
             return;
         }
-        ouroAtivado = true;
-        const card = document.getElementById('main-card');
-        if (card) card.classList.add('gold-glow');
         document.getElementById('feedback').innerText = '';
-        if (_cardIdx === 4) renderizarSubCard();
+        _atualizarRodapeOuro();
     }
 
     function desativarOuro() {
         ouroAtivado = false;
-        const card = document.getElementById('main-card');
-        if (card) card.classList.remove('gold-glow');
+        _atualizarRodapeOuro();
     }
 
     // ── STATUS ───────────────────────────────────────────────────────────────
@@ -916,9 +882,17 @@
             `${idx + 1} de ${proposicoes.length} neste lote`;
     }
 
+    // ── TELAS SECUNDÁRIAS — helpers ──────────────────────────────────────────
+    function fecharTelas() {
+        ['tela-ranking','tela-historico','tela-perfil','tela-wrapped'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+        });
+    }
+
     // ── TELA DE RANKING ──────────────────────────────────────────────────────
     function abrirRanking() {
-        document.getElementById('tela-principal').classList.add('hidden');
+        fecharTelas();
         const tela = document.getElementById('tela-ranking');
         tela.classList.remove('hidden');
         tela.classList.add('flex');
@@ -929,7 +903,6 @@
         const tela = document.getElementById('tela-ranking');
         tela.classList.add('hidden');
         tela.classList.remove('flex');
-        document.getElementById('tela-principal').classList.remove('hidden');
     }
 
     function renderizarRanking() {
@@ -941,13 +914,12 @@
             lista.innerHTML = `
                 <div class="flex flex-col items-center justify-center gap-4 mt-20 text-center">
                     <span class="text-5xl">🗳️</span>
-                    <p class="text-gray-300 font-bold text-lg">Nenhum voto ainda!</p>
-                    <p class="text-gray-500 text-sm">Volte à tela principal e vote nas proposições.</p>
+                    <p class="font-bold text-lg">Nenhum voto ainda!</p>
+                    <p class="text-base-content/50 text-sm">Volte à tela principal e vote nas proposições.</p>
                 </div>`;
             return;
         }
 
-        // Ordena por total de interações (desc)
         itens.sort((a, b) => {
             const tot = x => (x.voto||0)+(x.veto||0)+(x.inegociavel_voto||0)+(x.inegociavel_veto||0)+(x.abstencao||0);
             return tot(b) - tot(a);
@@ -960,14 +932,11 @@
             const ie = item.inegociavel_veto || 0;
             const ab = item.abstencao        || 0;
             const total = v + vt + iv + ie + ab;
-
             const pct = n => total > 0 ? ((n / total) * 100).toFixed(1) : 0;
-
             const ementa = (item.ementa || '').length > 120
                 ? item.ementa.slice(0, 120) + '…'
                 : (item.ementa || 'Sem descrição.');
 
-            // Segmentos das barras (só renderiza se > 0)
             const segmentos = [
                 { val: v,  cor: 'bg-green-500',  label: `✔️ ${v}` },
                 { val: iv, cor: 'bg-yellow-400', label: `🪙✅ ${iv}` },
@@ -976,44 +945,37 @@
                 { val: ab, cor: 'bg-gray-500',   label: `⏭️ ${ab}` },
             ].filter(s => s.val > 0);
 
-            const barrasHTML = segmentos.map(s =>
-                `<div class="${s.cor} h-full rounded-sm" style="width:${pct(s.val)}%" title="${s.label}"></div>`
-            ).join('');
-
-            const legendaHTML = segmentos.map(s =>
-                `<span class="text-xs text-gray-400">${s.label}</span>`
-            ).join('<span class="text-gray-600 mx-1">·</span>');
+            const barrasHTML  = segmentos.map(s => `<div class="${s.cor} h-full rounded-sm" style="width:${pct(s.val)}%" title="${s.label}"></div>`).join('');
+            const legendaHTML = segmentos.map(s => `<span class="text-xs text-base-content/50">${s.label}</span>`).join('<span class="text-base-content/20 mx-1">·</span>');
 
             return `
-            <div class="bg-gray-800 rounded-2xl p-4 shadow">
+            <div class="bg-base-200 rounded-2xl p-4 shadow">
                 <div class="flex justify-between items-start mb-1">
-                    <span class="text-yellow-400 font-black text-sm">${item.titulo}</span>
-                    <span class="text-gray-500 text-xs ml-2 whitespace-nowrap">${total} interação${total !== 1 ? 'ões' : ''}</span>
+                    <span class="text-warning font-black text-sm">${item.titulo}</span>
+                    <span class="text-base-content/40 text-xs ml-2 whitespace-nowrap">${total} interação${total !== 1 ? 'ões' : ''}</span>
                 </div>
-                <p class="text-gray-400 text-xs mb-3 leading-relaxed">${ementa}</p>
-                <div class="flex h-3 w-full rounded-full overflow-hidden gap-px bg-gray-700 mb-1">
+                <p class="text-base-content/50 text-xs mb-3 leading-relaxed">${ementa}</p>
+                <div class="flex h-3 w-full rounded-full overflow-hidden gap-px bg-base-300 mb-1">
                     ${barrasHTML}
                 </div>
-                <div class="flex flex-wrap gap-x-2 gap-y-1 mt-1">
-                    ${legendaHTML}
-                </div>
+                <div class="flex flex-wrap gap-x-2 gap-y-1 mt-1">${legendaHTML}</div>
             </div>`;
         }).join('');
     }
 
     // ── TELA DE HISTÓRICO ────────────────────────────────────────────────────
     const BADGES = {
-        voto:             { label: '✅ Voto a favor',    cls: 'bg-green-600 text-white' },
-        veto:             { label: '❌ Veto',             cls: 'bg-red-600 text-white' },
-        inegociavel_voto: { label: '🪙✅ Inegociável',   cls: 'bg-yellow-400 text-yellow-900' },
-        inegociavel_veto: { label: '🪙❌ Inegociável',   cls: 'bg-orange-500 text-white' },
-        abstencao:        { label: '⏭️ Pendente',        cls: 'bg-gray-600 text-gray-200' },
+        voto:             { label: '✅ Voto a favor',   cls: 'badge-success' },
+        veto:             { label: '❌ Veto',            cls: 'badge-error' },
+        inegociavel_voto: { label: '🪙✅ Inegociável',  cls: 'badge-warning' },
+        inegociavel_veto: { label: '🪙❌ Inegociável',  cls: 'badge-warning' },
+        abstencao:        { label: '⏭️ Pendente',       cls: 'badge-ghost' },
     };
 
     let filtroAtivo = 'todos';
 
     function abrirHistorico() {
-        document.getElementById('tela-principal').classList.add('hidden');
+        fecharTelas();
         const tela = document.getElementById('tela-historico');
         tela.classList.remove('hidden');
         tela.classList.add('flex');
@@ -1024,22 +986,17 @@
         const tela = document.getElementById('tela-historico');
         tela.classList.add('hidden');
         tela.classList.remove('flex');
-        document.getElementById('tela-principal').classList.remove('hidden');
     }
 
     function renderizarHistorico(filtro) {
         filtroAtivo = filtro;
 
-        // Atualiza visual dos botões de filtro
         const mapa = { todos:'f-todos', voto:'f-voto', veto:'f-veto', inegociavel:'f-inegociavel', abstencao:'f-abstencao' };
         Object.entries(mapa).forEach(([k, id]) => {
             const btn = document.getElementById(id);
-            btn.className = btn.className.replace(/bg-\S+|text-\S+/g, '').trim();
-            if (k === filtroAtivo) {
-                btn.classList.add('bg-white', 'text-gray-900');
-            } else {
-                btn.classList.add('bg-gray-700', 'text-gray-300');
-            }
+            if (!btn) return;
+            btn.classList.remove('btn-active', 'btn-neutral');
+            if (k === filtroAtivo) btn.classList.add('btn-active');
         });
 
         const lista    = document.getElementById('historico-lista');
@@ -1053,12 +1010,12 @@
 
         if (filtrado.length === 0) {
             const msg = historico.length === 0
-                ? '<p class="text-gray-500 text-sm">Volte à tela principal e vote nas proposições.</p>'
-                : '<p class="text-gray-500 text-sm">Nenhuma votação nesta categoria.</p>';
+                ? '<p class="text-base-content/50 text-sm">Volte à tela principal e vote nas proposições.</p>'
+                : '<p class="text-base-content/50 text-sm">Nenhuma votação nesta categoria.</p>';
             lista.innerHTML = `
                 <div class="flex flex-col items-center justify-center gap-4 mt-20 text-center">
                     <span class="text-5xl">🗳️</span>
-                    <p class="text-gray-300 font-bold text-lg">Nada aqui ainda!</p>
+                    <p class="font-bold text-lg">Nada aqui ainda!</p>
                     ${msg}
                 </div>`;
             return;
@@ -1067,7 +1024,7 @@
         _historicoPagina = filtrado;
 
         lista.innerHTML = filtrado.map((item, i) => {
-            const badge   = BADGES[item.categoria] || { label: item.categoria, cls: 'bg-gray-600 text-white' };
+            const badge   = BADGES[item.categoria] || { label: item.categoria, cls: 'badge-ghost' };
             const ementa  = (item.ementa || '').length > 110 ? item.ementa.slice(0, 110) + '…' : (item.ementa || 'Sem descrição.');
             const dataFmt = new Date(item.data).toLocaleString('pt-BR', {
                 day: 'numeric', month: 'long', year: 'numeric',
@@ -1076,16 +1033,16 @@
 
             return `
             <div onclick="abrirRevisao(${i})"
-                 class="bg-gray-800 hover:bg-gray-700 active:scale-[.98] rounded-2xl p-4 shadow flex flex-col gap-1.5 cursor-pointer transition">
+                 class="bg-base-200 hover:bg-base-300 active:scale-[.98] rounded-2xl p-4 shadow flex flex-col gap-1.5 cursor-pointer transition">
                 <div class="flex items-center justify-between gap-2">
-                    <span class="text-yellow-400 font-black text-sm">${item.titulo}</span>
+                    <span class="text-warning font-black text-sm">${item.titulo}</span>
                     <div class="flex items-center gap-1.5 shrink-0">
-                        <span class="text-xs font-bold px-2.5 py-1 rounded-full ${badge.cls}">${badge.label}</span>
-                        <span class="text-gray-500 text-base">›</span>
+                        <span class="badge ${badge.cls} badge-sm font-bold">${badge.label}</span>
+                        <span class="text-base-content/40 text-base">›</span>
                     </div>
                 </div>
-                <p class="text-gray-400 text-xs leading-relaxed">${ementa}</p>
-                <p class="text-gray-600 text-xs">${dataFmt}</p>
+                <p class="text-base-content/50 text-xs leading-relaxed">${ementa}</p>
+                <p class="text-base-content/30 text-xs">${dataFmt}</p>
             </div>`;
         }).join('');
     }
@@ -1101,7 +1058,7 @@
     }
 
     function abrirPerfil() {
-        document.getElementById('tela-principal').classList.add('hidden');
+        fecharTelas();
         const tela = document.getElementById('tela-perfil');
         tela.classList.remove('hidden');
         tela.classList.add('flex');
@@ -1112,7 +1069,6 @@
         const tela = document.getElementById('tela-perfil');
         tela.classList.add('hidden');
         tela.classList.remove('flex');
-        document.getElementById('tela-principal').classList.remove('hidden');
     }
 
     function carregarPerfil() {
@@ -1135,18 +1091,12 @@
     }
 
     function _renderFaixas() {
-        const cfg = {
-            crianca: 'bg-blue-500 text-white ring-2 ring-blue-300',
-            jovem:   'bg-green-500 text-white ring-2 ring-green-300',
-            adulto:  'bg-purple-500 text-white ring-2 ring-purple-300',
-            idoso:   'bg-orange-500 text-white ring-2 ring-orange-300',
-        };
-        const UNSEL = 'bg-gray-700 text-gray-300';
+        const colorMap = { crianca:'btn-info', jovem:'btn-success', adulto:'btn-secondary', idoso:'btn-warning' };
         ['crianca','jovem','adulto','idoso'].forEach(k => {
             const btn = document.getElementById(`faixa-${k}`);
             if (!btn) return;
-            const base = [...btn.classList].filter(c => !c.startsWith('bg-') && !c.startsWith('text-') && !c.startsWith('ring'));
-            btn.className = [...base, ...(k === _faixaSel ? cfg[k] : UNSEL).split(' ')].join(' ');
+            Object.values(colorMap).concat(['btn-outline']).forEach(c => btn.classList.remove(c));
+            btn.classList.add(k === _faixaSel ? colorMap[k] : 'btn-outline');
         });
         const aviso = document.getElementById('aviso-kids');
         if (aviso) {
@@ -1161,13 +1111,11 @@
     }
 
     function _renderPcd() {
-        const SEL   = 'bg-blue-500 text-white ring-2 ring-blue-300';
-        const UNSEL = 'bg-gray-700 text-gray-300';
         ['nao','sim'].forEach(k => {
             const btn  = document.getElementById(`pcd-${k}`);
             const active = (k === 'sim') ? _pcdSel : !_pcdSel;
-            const base = [...btn.classList].filter(c => !c.startsWith('bg-') && !c.startsWith('text-') && !c.startsWith('ring'));
-            btn.className = [...base, ...(active ? SEL : UNSEL).split(' ')].join(' ');
+            btn.classList.remove('btn-primary','btn-outline');
+            btn.classList.add(active ? 'btn-primary' : 'btn-outline');
         });
         const campo = document.getElementById('pcd-campo');
         if (_pcdSel) campo.classList.remove('hidden');
@@ -1209,7 +1157,7 @@
     const N_CARDS_WRAPPED = 6;
 
     function abrirWrapped() {
-        document.getElementById('tela-principal').classList.add('hidden');
+        fecharTelas();
         const tela = document.getElementById('tela-wrapped');
         tela.classList.remove('hidden');
         tela.classList.add('flex');
@@ -1224,11 +1172,11 @@
             nav.classList.add('hidden');
             actions.classList.add('hidden');
             dots.innerHTML = '';
-            card.className = 'w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center flex flex-col items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800';
-            card.style.minHeight = '420px';
+            card.className = 'w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center flex flex-col items-center justify-center bg-base-200';
+            card.style.minHeight = '400px';
             card.innerHTML = `<div class="text-6xl mb-4">🗳️</div>
-                <h2 class="text-white font-black text-2xl mb-3">Nenhum voto ainda!</h2>
-                <p class="text-gray-300 text-sm leading-relaxed">Vote em algumas leis antes de ver seu Wrapped Cívico.</p>`;
+                <h2 class="font-black text-2xl mb-3">Nenhum voto ainda!</h2>
+                <p class="text-base-content/60 text-sm leading-relaxed">Vote em algumas leis antes de ver seu Wrapped Cívico.</p>`;
             return;
         }
 
@@ -1243,7 +1191,6 @@
         const tela = document.getElementById('tela-wrapped');
         tela.classList.add('hidden');
         tela.classList.remove('flex');
-        document.getElementById('tela-principal').classList.remove('hidden');
     }
 
     function _computarWrapped(historico) {
@@ -1266,8 +1213,8 @@
         const perfilData   = JSON.parse(localStorage.getItem('vv_perfil')       || '{}');
         const similaridade = JSON.parse(localStorage.getItem('vv_similaridade') || '[]');
         const topTema      = (perfilData.temas && perfilData.temas.length > 0) ? perfilData.temas[0] : 'Cidadania';
-        const maisParecido  = similaridade.length > 0 ? similaridade[0]                          : null;
-        const maisDiferente = similaridade.length > 0 ? similaridade[similaridade.length - 1]    : null;
+        const maisParecido  = similaridade.length > 0 ? similaridade[0]                       : null;
+        const maisDiferente = similaridade.length > 0 ? similaridade[similaridade.length - 1] : null;
 
         return { total, nVotos, nVetos, nIneg, nAbst, perfil, perfilEmoji, perfilGrad, topTema, maisParecido, maisDiferente };
     }
@@ -1357,7 +1304,7 @@
         const { grad, html } = _cardWrapped(_wrappedIdx);
         const card = document.getElementById('wrapped-card');
         card.className = 'w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center flex flex-col items-center justify-center ' + grad;
-        card.style.minHeight = '420px';
+        card.style.minHeight = '400px';
         card.innerHTML = html;
 
         document.getElementById('wrapped-dots').innerHTML = Array.from({ length: N_CARDS_WRAPPED }, (_, i) =>
@@ -1393,8 +1340,6 @@
     }
 
     // ── VOTOS DOS DEPUTADOS (background) ─────────────────────────────────────
-    // Busca a votação mais recente de cada lei curada e salva os votos
-    // individuais em vv_votos_deputados. Totalmente silenciosa.
     async function carregarVotosDeputados() {
         try {
             const resultado = {};
@@ -1402,19 +1347,15 @@
                 try {
                     const jsonVotacoes = await fetchComFallback(`/proposicoes/${id}/votacoes`);
                     if (!jsonVotacoes.dados || jsonVotacoes.dados.length === 0) continue;
-
-                    // Votação mais recente = última do array
                     const idVotacao = jsonVotacoes.dados[jsonVotacoes.dados.length - 1].id;
-
                     const jsonVotos = await fetchComFallback(`/votacoes/${idVotacao}/votos`);
                     if (!jsonVotos.dados) continue;
-
                     resultado[id] = jsonVotos.dados.map(v => ({
                         idDeputado:   v.deputado_?.id,
                         nomeDeputado: v.deputado_?.nome,
                         siglaPartido: v.deputado_?.siglaPartido,
                         siglaUf:      v.deputado_?.siglaUf,
-                        voto:         v.tipoVoto   // "Sim" | "Não" | "Abstenção" | "Obstrução"
+                        voto:         v.tipoVoto
                     }));
                 } catch (_) {}
             }
@@ -1458,14 +1399,14 @@
 
     function _montarRevisaoCard() {
         document.getElementById('revisao-container').innerHTML = `
-        <div id="revisao-main" class="relative rounded-3xl shadow-2xl overflow-hidden" style="height:520px;">
+        <div id="revisao-main" class="relative rounded-3xl shadow-2xl overflow-hidden" style="height:460px;">
             <button onclick="navegarRevisao(-1)" id="revisao-prev"
-                class="absolute top-3 left-3 z-20 w-8 h-8 rounded-full flex items-center justify-center text-white text-xl font-bold transition"
+                class="absolute top-3 left-3 z-20 w-8 h-8 rounded-full flex items-center justify-center text-white text-xl font-bold"
                 style="background:rgba(0,0,0,.4);">‹</button>
             <div id="revisao-dots" class="absolute z-20 flex gap-1.5"
                  style="top:14px;left:50%;transform:translateX(-50%);"></div>
             <button onclick="navegarRevisao(1)" id="revisao-next"
-                class="absolute top-3 right-3 z-20 w-8 h-8 rounded-full flex items-center justify-center text-white text-xl font-bold transition"
+                class="absolute top-3 right-3 z-20 w-8 h-8 rounded-full flex items-center justify-center text-white text-xl font-bold"
                 style="background:rgba(0,0,0,.4);">›</button>
             <div id="revisao-sub" class="w-full h-full"></div>
         </div>`;
@@ -1510,37 +1451,36 @@
             const bOuro = 'bg-yellow-400 hover:bg-yellow-300 active:scale-90 transition p-4 rounded-full w-20 h-20 flex items-center justify-center shadow-lg border-4 border-yellow-200 text-3xl' + (_revisaoOuro ? ' opacity-50' : '');
             const hint = _revisaoOuro
                 ? `<div class="rounded-2xl px-4 py-2.5 text-center mb-3" style="background:rgba(120,80,0,.35);border:1px solid #d97706"><p class="text-yellow-300 text-sm font-bold">🪙 Inegociável ativado! Escolha ✔️ ou ✖️</p></div>`
-                : `<div class="rounded-2xl px-4 py-2.5 text-center mb-3 bg-gray-700"><p class="text-gray-400 text-xs">Escolha sua nova posição abaixo</p></div>`;
-            return `<div class="flex flex-col h-full bg-gray-800 px-6 pb-6 pt-14">
+                : `<div class="rounded-2xl px-4 py-2.5 text-center mb-3 bg-base-300"><p class="text-base-content/50 text-xs">Escolha sua nova posição abaixo</p></div>`;
+            return `<div class="flex flex-col h-full bg-base-200 px-6 pb-6 pt-14">
                 <div class="text-center mb-2">
-                    <p class="text-gray-400 text-xs uppercase tracking-widest mb-1">Novo voto</p>
-                    <p class="text-white font-bold text-sm">${tituloTxt}</p>
+                    <p class="text-base-content/50 text-xs uppercase tracking-widest mb-1">Novo voto</p>
+                    <p class="text-base-content font-bold text-sm">${tituloTxt}</p>
                 </div>
                 ${hint}
                 <div class="flex-1 flex items-center justify-center">
                     <div class="flex gap-4 items-end">
                         <div class="flex flex-col items-center gap-2">
                             <button onclick="confirmarVotoRevisao('veto')" class="${bVeto}">✖️</button>
-                            <span class="text-gray-400 text-xs font-bold">Vetar</span>
+                            <span class="text-base-content/50 text-xs font-bold">Vetar</span>
                         </div>
                         <div class="flex flex-col items-center gap-2">
                             <button onclick="confirmarVotoRevisao('ouro')" class="${bOuro}">🪙</button>
-                            <span class="text-gray-400 text-xs font-bold">Inegociável</span>
+                            <span class="text-base-content/50 text-xs font-bold">Inegociável</span>
                         </div>
                         <div class="flex flex-col items-center gap-2">
                             <button onclick="confirmarVotoRevisao('voto')" class="${bVoto}">✔️</button>
-                            <span class="text-gray-400 text-xs font-bold">Votar</span>
+                            <span class="text-base-content/50 text-xs font-bold">Votar</span>
                         </div>
                         <div class="flex flex-col items-center gap-2">
-                            <button onclick="confirmarVotoRevisao('abstencao')" class="bg-gray-600 hover:bg-gray-500 active:scale-90 transition p-3 rounded-full w-12 h-12 flex items-center justify-center shadow-lg text-xl">⏭️</button>
-                            <span class="text-gray-400 text-xs font-bold">Depois</span>
+                            <button onclick="confirmarVotoRevisao('abstencao')" class="bg-base-300 hover:bg-base-100 active:scale-90 transition p-3 rounded-full w-12 h-12 flex items-center justify-center shadow-lg text-xl">⏭️</button>
+                            <span class="text-base-content/50 text-xs font-bold">Depois</span>
                         </div>
                     </div>
                 </div>
             </div>`;
         }
 
-        // Modo visualização — voto atual destacado
         const ACT = {
             'voto':             { veto:false, ouro:false, voto:true,  abst:false },
             'veto':             { veto:true,  ouro:false, voto:false, abst:false },
@@ -1556,12 +1496,12 @@
         const rc  = RC[cat] || 'ring-gray-400';
         const act = ACT[cat] || {};
         const r   = (on) => on ? `ring-4 ${rc} ring-offset-2 ring-offset-gray-800` : 'opacity-30';
-        const lbl = (on) => on ? 'text-gray-300' : 'text-gray-600';
+        const lbl = (on) => on ? 'text-base-content' : 'text-base-content/30';
 
-        return `<div class="flex flex-col h-full bg-gray-800 px-6 pb-6 pt-14">
+        return `<div class="flex flex-col h-full bg-base-200 px-6 pb-6 pt-14">
             <div class="text-center mb-3">
-                <p class="text-gray-400 text-xs uppercase tracking-widest mb-1">Sua decisão</p>
-                <p class="text-white font-bold text-sm">${tituloTxt}</p>
+                <p class="text-base-content/50 text-xs uppercase tracking-widest mb-1">Sua decisão</p>
+                <p class="text-base-content font-bold text-sm">${tituloTxt}</p>
             </div>
             <div class="flex-1 flex items-center justify-center">
                 <div class="flex gap-4 items-end">
@@ -1578,13 +1518,13 @@
                         <span class="text-xs font-bold ${lbl(act.voto)}">Votar</span>
                     </div>
                     <div class="flex flex-col items-center gap-2">
-                        <button disabled class="bg-gray-600 p-3 rounded-full w-12 h-12 flex items-center justify-center shadow-lg text-xl ${r(act.abst)}">⏭️</button>
+                        <button disabled class="bg-base-300 p-3 rounded-full w-12 h-12 flex items-center justify-center shadow-lg text-xl ${r(act.abst)}">⏭️</button>
                         <span class="text-xs font-bold ${lbl(act.abst)}">Depois</span>
                     </div>
                 </div>
             </div>
             <button onclick="ativarEdicaoRevisao()"
-                class="w-full py-3 bg-gray-700 hover:bg-gray-600 active:scale-95 rounded-2xl text-white font-bold text-sm transition mt-2">
+                class="btn btn-ghost w-full mt-2 font-bold text-sm">
                 ✏️ Mudar voto
             </button>
         </div>`;
@@ -1603,7 +1543,7 @@
             novaCategoria = botao === 'voto' ? 'inegociavel_voto' : 'inegociavel_veto';
             _revisaoOuro = false;
         } else {
-            novaCategoria = botao; // 'voto' | 'veto' | 'abstencao'
+            novaCategoria = botao;
         }
         _salvarVotoRevisao(novaCategoria);
     }
@@ -1612,21 +1552,18 @@
         const id   = String(_revisaoItem.id);
         const prop = propFromItem(_revisaoItem);
 
-        // vv_votos
         const votos = JSON.parse(localStorage.getItem('vv_votos') || '{}');
         const velha = votos[id] ? votos[id].categoria : _revisaoItem.categoria;
         const novaData = new Date().toISOString();
         votos[id] = { titulo: _revisaoItem.titulo, ementa: prop.ementa, categoria: novaCategoria, data: novaData };
         localStorage.setItem('vv_votos', JSON.stringify(votos));
 
-        // vv_historico — atualiza entrada mais recente deste id
         const historico = JSON.parse(localStorage.getItem('vv_historico') || '[]');
         for (let i = historico.length - 1; i >= 0; i--) {
             if (historico[i].id === id) { historico[i].categoria = novaCategoria; historico[i].data = novaData; break; }
         }
         localStorage.setItem('vv_historico', JSON.stringify(historico));
 
-        // vv_ranking — decrementa categoria antiga, incrementa nova
         const ranking = JSON.parse(localStorage.getItem('vv_ranking') || '{}');
         if (ranking[id]) {
             if (velha && (ranking[id][velha] || 0) > 0) ranking[id][velha]--;
@@ -1653,6 +1590,7 @@
             proposicoes = temas ? _priorizarCuradas(curadas) : curadas;
             _atualizarBadgePerfil(!!temas);
             idx = 0;
+            _setFooterEnabled(true);
             atualizarStatus();
             renderizarCard();
         } else if (modoKids()) {
@@ -1663,7 +1601,7 @@
     }
 
     iniciar();
-    carregarVotosDeputados(); // fire-and-forget, silencioso
+    carregarVotosDeputados();
     </script>
 </body>
 </html>
