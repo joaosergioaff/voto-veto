@@ -316,6 +316,28 @@
 
     </div><!-- /tela-wrapped -->
 
+    <!-- ── TELA REVISÃO ──────────────────────────────────────────────────────── -->
+    <div id="tela-revisao" class="hidden fixed inset-0 flex-col" style="z-index:60;background:#030712;">
+
+        <!-- Cabeçalho -->
+        <div class="flex items-center gap-3 px-4 pt-4 pb-3 border-b border-gray-800 shrink-0" style="background:#111827">
+            <button onclick="fecharRevisao()"
+                class="bg-gray-700 hover:bg-gray-600 active:scale-90 transition px-4 py-2 rounded-full text-sm font-bold text-white shrink-0">
+                ← Voltar
+            </button>
+            <p id="revisao-titulo" class="text-gray-200 font-bold text-sm truncate"></p>
+        </div>
+
+        <!-- Card -->
+        <div class="flex-1 flex items-center justify-center p-4 overflow-hidden">
+            <div id="revisao-container" class="relative w-full max-w-sm" style="height:520px;"></div>
+        </div>
+
+        <!-- Feedback -->
+        <p id="revisao-feedback" class="text-center font-bold text-sm pb-5 h-10 transition-opacity" style="color:transparent"></p>
+
+    </div><!-- /tela-revisao -->
+
     <script>
     // ── CONFIGURAÇÃO ────────────────────────────────────────────────────────
     const API_DIRETA   = 'https://dadosabertos.camara.leg.br/api/v2';
@@ -336,7 +358,12 @@
     let pagina       = 1;
     let carregando   = false;
     let ouroAtivado  = false;
-    let _cardIdx    = 0;
+    let _cardIdx     = 0;
+    let _historicoPagina  = [];
+    let _revisaoItem      = null;
+    let _revisaoCardIdx   = 0;
+    let _revisaoEditando  = false;
+    let _revisaoOuro      = false;
 
     // ── LOCALSTORAGE ─────────────────────────────────────────────────────────
     // vv_votos   : { [id]: { titulo, ementa, categoria, data } }   — último voto por lei
@@ -990,7 +1017,9 @@
             return;
         }
 
-        lista.innerHTML = filtrado.map(item => {
+        _historicoPagina = filtrado;
+
+        lista.innerHTML = filtrado.map((item, i) => {
             const badge   = BADGES[item.categoria] || { label: item.categoria, cls: 'bg-gray-600 text-white' };
             const ementa  = (item.ementa || '').length > 110 ? item.ementa.slice(0, 110) + '…' : (item.ementa || 'Sem descrição.');
             const dataFmt = new Date(item.data).toLocaleString('pt-BR', {
@@ -999,10 +1028,14 @@
             });
 
             return `
-            <div class="bg-gray-800 rounded-2xl p-4 shadow flex flex-col gap-1.5">
+            <div onclick="abrirRevisao(${i})"
+                 class="bg-gray-800 hover:bg-gray-700 active:scale-[.98] rounded-2xl p-4 shadow flex flex-col gap-1.5 cursor-pointer transition">
                 <div class="flex items-center justify-between gap-2">
                     <span class="text-yellow-400 font-black text-sm">${item.titulo}</span>
-                    <span class="shrink-0 text-xs font-bold px-2.5 py-1 rounded-full ${badge.cls}">${badge.label}</span>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <span class="text-xs font-bold px-2.5 py-1 rounded-full ${badge.cls}">${badge.label}</span>
+                        <span class="text-gray-500 text-base">›</span>
+                    </div>
                 </div>
                 <p class="text-gray-400 text-xs leading-relaxed">${ementa}</p>
                 <p class="text-gray-600 text-xs">${dataFmt}</p>
@@ -1340,6 +1373,228 @@
             }
             localStorage.setItem('vv_votos_deputados', JSON.stringify(resultado));
         } catch (_) {}
+    }
+
+    // ── TELA DE REVISÃO ──────────────────────────────────────────────────────
+    function propFromItem(item) {
+        const m = (item.titulo || '').match(/^([A-Z]+)\s+(\S+)\/(\d{4})$/i);
+        return {
+            id:               item.id,
+            siglaTipo:        m ? m[1].toUpperCase() : '',
+            numero:           m ? m[2] : '',
+            ano:              m ? m[3] : '',
+            ementa:           item.ementa || '',
+            dataApresentacao: null
+        };
+    }
+
+    function abrirRevisao(i) {
+        _revisaoItem     = _historicoPagina[i];
+        _revisaoCardIdx  = 0;
+        _revisaoEditando = false;
+        _revisaoOuro     = false;
+        const tela = document.getElementById('tela-revisao');
+        tela.classList.remove('hidden');
+        tela.classList.add('flex');
+        document.getElementById('revisao-titulo').innerText = _revisaoItem.titulo || '';
+        document.getElementById('revisao-feedback').innerText = '';
+        document.getElementById('revisao-feedback').style.color = 'transparent';
+        _montarRevisaoCard();
+    }
+
+    function fecharRevisao() {
+        const tela = document.getElementById('tela-revisao');
+        tela.classList.add('hidden');
+        tela.classList.remove('flex');
+        renderizarHistorico(filtroAtivo);
+    }
+
+    function _montarRevisaoCard() {
+        document.getElementById('revisao-container').innerHTML = `
+        <div id="revisao-main" class="relative rounded-3xl shadow-2xl overflow-hidden" style="height:520px;">
+            <button onclick="navegarRevisao(-1)" id="revisao-prev"
+                class="absolute top-3 left-3 z-20 w-8 h-8 rounded-full flex items-center justify-center text-white text-xl font-bold transition"
+                style="background:rgba(0,0,0,.4);">‹</button>
+            <div id="revisao-dots" class="absolute z-20 flex gap-1.5"
+                 style="top:14px;left:50%;transform:translateX(-50%);"></div>
+            <button onclick="navegarRevisao(1)" id="revisao-next"
+                class="absolute top-3 right-3 z-20 w-8 h-8 rounded-full flex items-center justify-center text-white text-xl font-bold transition"
+                style="background:rgba(0,0,0,.4);">›</button>
+            <div id="revisao-sub" class="w-full h-full"></div>
+        </div>`;
+        _atualizarRevisaoSub();
+    }
+
+    function _atualizarRevisaoSub() {
+        const prop = propFromItem(_revisaoItem);
+
+        const dots = document.getElementById('revisao-dots');
+        if (dots) {
+            dots.innerHTML = Array.from({length: 5}, (_, i) =>
+                `<div class="w-2 h-2 rounded-full" style="background:${i === _revisaoCardIdx ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.3)'}"></div>`
+            ).join('');
+        }
+        const prev = document.getElementById('revisao-prev');
+        const next = document.getElementById('revisao-next');
+        if (prev) prev.style.visibility = _revisaoCardIdx === 0 ? 'hidden' : '';
+        if (next) next.style.visibility = _revisaoCardIdx === 4 ? 'hidden' : '';
+
+        const sub = document.getElementById('revisao-sub');
+        if (sub) sub.innerHTML = _revisaoCardIdx === 4
+            ? _htmlRevisaoCard5(prop)
+            : htmlSubCard(_revisaoCardIdx, prop);
+    }
+
+    function navegarRevisao(dir) {
+        const novo = _revisaoCardIdx + dir;
+        if (novo < 0 || novo > 4) return;
+        if (novo < 4) { _revisaoEditando = false; _revisaoOuro = false; }
+        _revisaoCardIdx = novo;
+        _atualizarRevisaoSub();
+    }
+
+    function _htmlRevisaoCard5(prop) {
+        const tituloTxt = `${prop.siglaTipo} nº ${prop.numero}/${prop.ano}`;
+        const cat = _revisaoItem.categoria;
+
+        if (_revisaoEditando) {
+            const bVeto = 'bg-red-600 hover:bg-red-500 active:scale-90 transition p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl' + (_revisaoOuro ? ' btn-pulse' : '');
+            const bVoto = 'bg-green-600 hover:bg-green-500 active:scale-90 transition p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl' + (_revisaoOuro ? ' btn-pulse' : '');
+            const bOuro = 'bg-yellow-400 hover:bg-yellow-300 active:scale-90 transition p-4 rounded-full w-20 h-20 flex items-center justify-center shadow-lg border-4 border-yellow-200 text-3xl' + (_revisaoOuro ? ' opacity-50' : '');
+            const hint = _revisaoOuro
+                ? `<div class="rounded-2xl px-4 py-2.5 text-center mb-3" style="background:rgba(120,80,0,.35);border:1px solid #d97706"><p class="text-yellow-300 text-sm font-bold">🪙 Inegociável ativado! Escolha ✔️ ou ✖️</p></div>`
+                : `<div class="rounded-2xl px-4 py-2.5 text-center mb-3 bg-gray-700"><p class="text-gray-400 text-xs">Escolha sua nova posição abaixo</p></div>`;
+            return `<div class="flex flex-col h-full bg-gray-800 px-6 pb-6 pt-14">
+                <div class="text-center mb-2">
+                    <p class="text-gray-400 text-xs uppercase tracking-widest mb-1">Novo voto</p>
+                    <p class="text-white font-bold text-sm">${tituloTxt}</p>
+                </div>
+                ${hint}
+                <div class="flex-1 flex items-center justify-center">
+                    <div class="flex gap-4 items-end">
+                        <div class="flex flex-col items-center gap-2">
+                            <button onclick="confirmarVotoRevisao('veto')" class="${bVeto}">✖️</button>
+                            <span class="text-gray-400 text-xs font-bold">Vetar</span>
+                        </div>
+                        <div class="flex flex-col items-center gap-2">
+                            <button onclick="confirmarVotoRevisao('ouro')" class="${bOuro}">🪙</button>
+                            <span class="text-gray-400 text-xs font-bold">Inegociável</span>
+                        </div>
+                        <div class="flex flex-col items-center gap-2">
+                            <button onclick="confirmarVotoRevisao('voto')" class="${bVoto}">✔️</button>
+                            <span class="text-gray-400 text-xs font-bold">Votar</span>
+                        </div>
+                        <div class="flex flex-col items-center gap-2">
+                            <button onclick="confirmarVotoRevisao('abstencao')" class="bg-gray-600 hover:bg-gray-500 active:scale-90 transition p-3 rounded-full w-12 h-12 flex items-center justify-center shadow-lg text-xl">⏭️</button>
+                            <span class="text-gray-400 text-xs font-bold">Depois</span>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        // Modo visualização — voto atual destacado
+        const ACT = {
+            'voto':             { veto:false, ouro:false, voto:true,  abst:false },
+            'veto':             { veto:true,  ouro:false, voto:false, abst:false },
+            'inegociavel_voto': { veto:false, ouro:true,  voto:true,  abst:false },
+            'inegociavel_veto': { veto:true,  ouro:true,  voto:false, abst:false },
+            'abstencao':        { veto:false, ouro:false, voto:false, abst:true  },
+        };
+        const RC = {
+            'voto':'ring-green-400', 'veto':'ring-red-400',
+            'inegociavel_voto':'ring-yellow-400', 'inegociavel_veto':'ring-yellow-400',
+            'abstencao':'ring-gray-400'
+        };
+        const rc  = RC[cat] || 'ring-gray-400';
+        const act = ACT[cat] || {};
+        const r   = (on) => on ? `ring-4 ${rc} ring-offset-2 ring-offset-gray-800` : 'opacity-30';
+        const lbl = (on) => on ? 'text-gray-300' : 'text-gray-600';
+
+        return `<div class="flex flex-col h-full bg-gray-800 px-6 pb-6 pt-14">
+            <div class="text-center mb-3">
+                <p class="text-gray-400 text-xs uppercase tracking-widest mb-1">Sua decisão</p>
+                <p class="text-white font-bold text-sm">${tituloTxt}</p>
+            </div>
+            <div class="flex-1 flex items-center justify-center">
+                <div class="flex gap-4 items-end">
+                    <div class="flex flex-col items-center gap-2">
+                        <button disabled class="bg-red-600 p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl ${r(act.veto)}">✖️</button>
+                        <span class="text-xs font-bold ${lbl(act.veto)}">Vetar</span>
+                    </div>
+                    <div class="flex flex-col items-center gap-2">
+                        <button disabled class="bg-yellow-400 p-4 rounded-full w-20 h-20 flex items-center justify-center shadow-lg border-4 border-yellow-200 text-3xl ${r(act.ouro)}">🪙</button>
+                        <span class="text-xs font-bold ${lbl(act.ouro)}">Inegociável</span>
+                    </div>
+                    <div class="flex flex-col items-center gap-2">
+                        <button disabled class="bg-green-600 p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-lg text-2xl ${r(act.voto)}">✔️</button>
+                        <span class="text-xs font-bold ${lbl(act.voto)}">Votar</span>
+                    </div>
+                    <div class="flex flex-col items-center gap-2">
+                        <button disabled class="bg-gray-600 p-3 rounded-full w-12 h-12 flex items-center justify-center shadow-lg text-xl ${r(act.abst)}">⏭️</button>
+                        <span class="text-xs font-bold ${lbl(act.abst)}">Depois</span>
+                    </div>
+                </div>
+            </div>
+            <button onclick="ativarEdicaoRevisao()"
+                class="w-full py-3 bg-gray-700 hover:bg-gray-600 active:scale-95 rounded-2xl text-white font-bold text-sm transition mt-2">
+                ✏️ Mudar voto
+            </button>
+        </div>`;
+    }
+
+    function ativarEdicaoRevisao() {
+        _revisaoEditando = true;
+        _revisaoOuro = false;
+        _atualizarRevisaoSub();
+    }
+
+    function confirmarVotoRevisao(botao) {
+        if (botao === 'ouro') { _revisaoOuro = !_revisaoOuro; _atualizarRevisaoSub(); return; }
+        let novaCategoria;
+        if (_revisaoOuro) {
+            novaCategoria = botao === 'voto' ? 'inegociavel_voto' : 'inegociavel_veto';
+            _revisaoOuro = false;
+        } else {
+            novaCategoria = botao; // 'voto' | 'veto' | 'abstencao'
+        }
+        _salvarVotoRevisao(novaCategoria);
+    }
+
+    function _salvarVotoRevisao(novaCategoria) {
+        const id   = String(_revisaoItem.id);
+        const prop = propFromItem(_revisaoItem);
+
+        // vv_votos
+        const votos = JSON.parse(localStorage.getItem('vv_votos') || '{}');
+        const velha = votos[id] ? votos[id].categoria : _revisaoItem.categoria;
+        const novaData = new Date().toISOString();
+        votos[id] = { titulo: _revisaoItem.titulo, ementa: prop.ementa, categoria: novaCategoria, data: novaData };
+        localStorage.setItem('vv_votos', JSON.stringify(votos));
+
+        // vv_historico — atualiza entrada mais recente deste id
+        const historico = JSON.parse(localStorage.getItem('vv_historico') || '[]');
+        for (let i = historico.length - 1; i >= 0; i--) {
+            if (historico[i].id === id) { historico[i].categoria = novaCategoria; historico[i].data = novaData; break; }
+        }
+        localStorage.setItem('vv_historico', JSON.stringify(historico));
+
+        // vv_ranking — decrementa categoria antiga, incrementa nova
+        const ranking = JSON.parse(localStorage.getItem('vv_ranking') || '{}');
+        if (ranking[id]) {
+            if (velha && (ranking[id][velha] || 0) > 0) ranking[id][velha]--;
+            ranking[id][novaCategoria] = (ranking[id][novaCategoria] || 0) + 1;
+        }
+        localStorage.setItem('vv_ranking', JSON.stringify(ranking));
+
+        if (LISTA_CURADA.includes(Number(id))) calcularSimilaridade();
+
+        _revisaoItem.categoria = novaCategoria;
+        _revisaoEditando = false;
+
+        const fb = document.getElementById('revisao-feedback');
+        if (fb) { fb.innerText = '✅ Voto atualizado!'; fb.style.color = '#4ade80'; }
+        setTimeout(fecharRevisao, 1200);
     }
 
     // ── INIT ─────────────────────────────────────────────────────────────────
