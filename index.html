@@ -163,6 +163,10 @@
                         <span class="text-xs opacity-70">60+ anos</span>
                     </button>
                 </div>
+                <div id="aviso-kids" class="hidden mt-3 bg-blue-900 border border-blue-600 rounded-xl px-4 py-3 flex items-start gap-2">
+                    <span class="shrink-0">🧒</span>
+                    <p class="text-blue-200 text-xs leading-relaxed"><strong>Modo Kids ativado</strong> — seu filho verá linguagem simplificada e apenas os projetos mais importantes.</p>
+                </div>
             </section>
 
             <!-- 2. Estado -->
@@ -296,6 +300,13 @@
     const ITENS        = 15;
     const LISTA_CURADA = [2485341, 2487436];
 
+    const TEXTOS_KIDS = {
+        2485341: "Hoje muitos trabalhadores precisam trabalhar 6 dias seguidos para descansar só 1. Essa lei quer mudar isso: as pessoas trabalhariam no máximo 5 dias e descansariam 2, como num fim de semana. Isso daria mais tempo para a família, o estudo e o lazer.",
+        2487436: "O governo cobra um imposto chamado Imposto de Renda de quem trabalha e recebe salário. Essa lei diz que quem ganha até R$5.000 por mês não precisa mais pagar esse imposto. Assim, essas pessoas ficam com mais dinheiro no bolso todo mês."
+    };
+
+    const modoKids = () => localStorage.getItem('vv_modo_kids') === 'true';
+
     let proposicoes  = [];
     let idx          = 0;
     let pagina       = 1;
@@ -400,13 +411,20 @@
     // ── RENDERIZAR CARD ──────────────────────────────────────────────────────
     function renderizarCard() {
         const container = document.getElementById('card-container');
-        if (idx >= proposicoes.length) { carregarProposicoes(); return; }
+        if (idx >= proposicoes.length) {
+            if (modoKids()) { mostrarFimKids(); } else { carregarProposicoes(); }
+            return;
+        }
 
-        const p          = proposicoes[idx];
+        const p        = proposicoes[idx];
+        const kids     = modoKids();
+        const isCurada = LISTA_CURADA.includes(Number(p.id));
+        const textoKids = (kids && isCurada && TEXTOS_KIDS[p.id]) ? TEXTOS_KIDS[p.id] : null;
+
         const data       = p.dataApresentacao
             ? new Date(p.dataApresentacao).toLocaleDateString('pt-BR') : '–';
-        const ementa     = p.ementa || 'Sem descrição disponível.';
-        const ementaExib = ementa.length > 230 ? ementa.slice(0, 230) + '…' : ementa;
+        const ementa     = textoKids || p.ementa || 'Sem descrição disponível.';
+        const ementaExib = textoKids ? ementa : (ementa.length > 230 ? ementa.slice(0, 230) + '…' : ementa);
 
         const cores = {
             PL:  'bg-blue-100 text-blue-800',
@@ -414,7 +432,10 @@
             MPV: 'bg-pink-100 text-pink-800',
             PDL: 'bg-green-100 text-green-800'
         };
-        const cor = cores[p.siglaTipo] || 'bg-gray-100 text-gray-800';
+        const cor       = cores[p.siglaTipo] || 'bg-gray-100 text-gray-800';
+        const badgeKids = textoKids
+            ? `<div class="mb-2"><span class="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">🧒 Modo Kids</span></div>`
+            : '';
 
         container.innerHTML = `
         <div id="main-card"
@@ -422,12 +443,13 @@
              style="height:490px;padding:1.4rem;">
 
             <div>
-                <div class="flex justify-between items-center mb-3">
+                <div class="flex justify-between items-center mb-2">
                     <span class="text-xs font-bold px-2.5 py-1 rounded-full ${cor}">
                         ${p.siglaTipo} ${p.numero}/${p.ano}
                     </span>
                     <span class="text-gray-400 text-xs">${data}</span>
                 </div>
+                ${badgeKids}
                 <h2 class="text-xl font-black leading-snug mb-3 text-gray-900">
                     ${p.siglaTipo} nº&nbsp;${p.numero} de ${p.ano}
                 </h2>
@@ -480,6 +502,22 @@
                     Tentar novamente
                 </button>
             </div>`;
+    }
+
+    function mostrarFimKids() {
+        document.getElementById('card-container').innerHTML = `
+            <div class="rounded-3xl shadow-2xl flex flex-col items-center justify-center gap-4 p-8 text-center text-white"
+                 style="height:490px;background:linear-gradient(135deg,#60a5fa,#a78bfa);">
+                <span class="text-6xl">🎉</span>
+                <h2 class="font-black text-xl leading-snug">Você votou em todas as leis importantes por agora!</h2>
+                <p class="text-blue-100 text-sm">Volte em breve para novas leis.</p>
+                <button onclick="abrirHistorico()"
+                    class="mt-2 bg-white text-blue-600 font-black px-6 py-2.5 rounded-full text-sm shadow">
+                    📋 Ver meu histórico
+                </button>
+            </div>`;
+        document.getElementById('status-text').innerText = '🧒 Modo Kids';
+        document.getElementById('contador').innerText = '';
     }
 
     // ── MECÂNICA DA MOEDA DE OURO ────────────────────────────────────────────
@@ -790,6 +828,11 @@
             const base = [...btn.classList].filter(c => !c.startsWith('bg-') && !c.startsWith('text-') && !c.startsWith('ring'));
             btn.className = [...base, ...(k === _faixaSel ? cfg[k] : UNSEL).split(' ')].join(' ');
         });
+        const aviso = document.getElementById('aviso-kids');
+        if (aviso) {
+            if (_faixaSel === 'crianca') aviso.classList.remove('hidden');
+            else aviso.classList.add('hidden');
+        }
     }
 
     function setPcd(sim) {
@@ -849,6 +892,8 @@
             idx = 0;
             atualizarStatus();
             renderizarCard();
+        } else if (modoKids()) {
+            mostrarFimKids();
         } else {
             carregarProposicoes();
         }
