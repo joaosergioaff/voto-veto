@@ -43,6 +43,9 @@
         <div class="mb-5 text-center">
             <h1 class="text-2xl font-black text-yellow-400 tracking-wide">Voto & Veto</h1>
             <p id="status-text" class="text-gray-400 text-xs mt-1">Carregando projetos de lei...</p>
+            <div id="badge-perfil" class="hidden mt-1.5 inline-flex items-center gap-1 text-gray-400 text-xs">
+                <span>🎯</span><span>Personalizado para você</span>
+            </div>
         </div>
 
         <div id="card-container" class="relative w-full max-w-sm" style="height:520px;"></div>
@@ -356,6 +359,43 @@
 
     const modoKids = () => localStorage.getItem('vv_modo_kids') === 'true';
 
+    const TEMA_KEYWORDS_PT = {
+        'Trabalho':     /trabalho|emprego|jornada|sal.rio|trabalhador/i,
+        'Impostos':     /imposto|tributo|renda|fiscal|tribut.rio/i,
+        'Saúde':        /sa.de|hospital|m.dico|sanit.rio/i,
+        'Educação':     /educa..o|escola|ensino|estudante/i,
+        'Segurança':    /seguran.a|crime|pol.cia|penal/i,
+        'Previdência':  /previd.ncia|aposentadoria|pens.o/i,
+        'Meio Ambiente':/ambiente|floresta|clima|ambiental/i,
+        'Tecnologia':   /tecnologia|digital|internet|dados/i,
+        'Habitação':    /habita..o|moradia|im.vel|aluguel/i,
+        'Transporte':   /transporte|rodovia|mobilidade|tr.nsito/i,
+    };
+
+    function _temasAtivos() {
+        try {
+            const p = JSON.parse(localStorage.getItem('vv_perfil') || '{}');
+            return Array.isArray(p.temas) && p.temas.length > 0 ? p.temas : null;
+        } catch { return null; }
+    }
+
+    function _priorizarCuradas(lista) {
+        const temas = _temasAtivos();
+        if (!temas) return lista;
+        return [...lista].sort((a, b) => {
+            const textA = ((a.ementa || '') + ' ' + (a.titulo || '')).toLowerCase();
+            const textB = ((b.ementa || '') + ' ' + (b.titulo || '')).toLowerCase();
+            const scoreA = temas.reduce((s, t) => s + (TEMA_KEYWORDS_PT[t]?.test(textA) ? 1 : 0), 0);
+            const scoreB = temas.reduce((s, t) => s + (TEMA_KEYWORDS_PT[t]?.test(textB) ? 1 : 0), 0);
+            return scoreB - scoreA;
+        });
+    }
+
+    function _atualizarBadgePerfil(ativo) {
+        const el = document.getElementById('badge-perfil');
+        if (el) { ativo ? el.classList.remove('hidden') : el.classList.add('hidden'); }
+    }
+
     let proposicoes  = [];
     let idx          = 0;
     let pagina       = 1;
@@ -495,7 +535,11 @@
 
         try {
             const tipo = TIPOS[Math.floor(Math.random() * TIPOS.length)];
-            const path = `/proposicoes?siglaTipo=${tipo}&itens=${ITENS}&pagina=${pagina}&ordem=DESC&ordenarPor=id`;
+            const temas = _temasAtivos();
+            const temaPrincipal = temas ? temas[0] : null;
+            const kwParam = temaPrincipal ? `&keywords=${encodeURIComponent(temaPrincipal)}` : '';
+            const path = `/proposicoes?siglaTipo=${tipo}&itens=${ITENS}&pagina=${pagina}&ordem=DESC&ordenarPor=id${kwParam}`;
+            _atualizarBadgePerfil(!!temaPrincipal);
             const json = await fetchComFallback(path);
 
             if (!json.dados || json.dados.length === 0) {
@@ -1605,7 +1649,9 @@
         mostrarSkeleton();
         const curadas = await carregarCuradas();
         if (curadas.length > 0) {
-            proposicoes = curadas;
+            const temas = _temasAtivos();
+            proposicoes = temas ? _priorizarCuradas(curadas) : curadas;
+            _atualizarBadgePerfil(!!temas);
             idx = 0;
             atualizarStatus();
             renderizarCard();
