@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Voto & Veto</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
     <style>
         .card { transition: transform 0.35s ease, opacity 0.35s ease; }
         .swipe-left  { transform: translateX(-160%) rotate(-22deg); opacity: 0; }
@@ -31,6 +32,10 @@
     <button onclick="abrirPerfil()"
         class="fixed top-20 right-4 z-50 bg-gray-700 hover:bg-gray-600 active:scale-90 transition w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-2xl"
         title="Meu perfil">👤</button>
+
+    <button onclick="abrirWrapped()"
+        class="fixed bottom-6 right-4 z-50 bg-purple-600 hover:bg-purple-500 active:scale-90 transition w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-2xl"
+        title="Wrapped Cívico">🎁</button>
 
     <!-- ── TELA PRINCIPAL ────────────────────────────────────────────────── -->
     <div id="tela-principal" class="flex flex-col items-center justify-center min-h-screen p-4">
@@ -291,6 +296,48 @@
 
         </div><!-- /formulário -->
     </div><!-- /tela-perfil -->
+
+    <!-- ── TELA WRAPPED CÍVICO ──────────────────────────────────────────────── -->
+    <div id="tela-wrapped" class="hidden fixed inset-0 z-40 bg-gray-950 flex-col items-center justify-center p-4 overflow-y-auto">
+
+        <!-- Header -->
+        <div class="w-full max-w-sm flex items-center justify-between mb-5">
+            <span class="text-white font-black text-lg">🎁 Wrapped Cívico</span>
+            <button onclick="fecharWrapped()"
+                class="text-gray-400 hover:text-white text-xl w-10 h-10 flex items-center justify-center rounded-full bg-gray-800 transition">✕</button>
+        </div>
+
+        <!-- Dots de progresso -->
+        <div id="wrapped-dots" class="flex gap-2 mb-5"></div>
+
+        <!-- Card principal -->
+        <div id="wrapped-card" class="w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center flex flex-col items-center justify-center" style="min-height:420px;"></div>
+
+        <!-- Navegação -->
+        <div id="wrapped-nav" class="flex gap-4 mt-6 items-center">
+            <button id="wrapped-prev" onclick="navegarWrapped(-1)"
+                class="bg-gray-700 hover:bg-gray-600 text-white px-5 py-2.5 rounded-full text-sm font-bold transition">
+                ← Anterior
+            </button>
+            <button id="wrapped-next" onclick="navegarWrapped(1)"
+                class="bg-white text-gray-900 px-5 py-2.5 rounded-full text-sm font-bold transition hover:bg-gray-100">
+                Próximo →
+            </button>
+        </div>
+
+        <!-- Ações -->
+        <div id="wrapped-actions" class="flex gap-3 mt-4 flex-wrap justify-center pb-6">
+            <button onclick="salvarImagemWrapped()"
+                class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-full text-sm font-bold transition">
+                📸 Salvar imagem
+            </button>
+            <button onclick="compartilharWhatsApp()"
+                class="bg-green-700 hover:bg-green-600 text-white px-4 py-2 rounded-full text-sm font-bold transition">
+                📤 Compartilhar no WhatsApp
+            </button>
+        </div>
+
+    </div><!-- /tela-wrapped -->
 
     <script>
     // ── CONFIGURAÇÃO ────────────────────────────────────────────────────────
@@ -933,6 +980,195 @@
         el.innerText = msg;
         el.style.opacity = '1';
         setTimeout(() => { el.style.opacity = '0'; }, 2500);
+    }
+
+    // ── TELA WRAPPED CÍVICO ──────────────────────────────────────────────────
+    let _wrappedIdx  = 0;
+    let _wrappedData = null;
+    const N_CARDS_WRAPPED = 6;
+
+    function abrirWrapped() {
+        document.getElementById('tela-principal').classList.add('hidden');
+        const tela = document.getElementById('tela-wrapped');
+        tela.classList.remove('hidden');
+        tela.classList.add('flex');
+
+        const historico = JSON.parse(localStorage.getItem('vv_historico') || '[]');
+        const nav     = document.getElementById('wrapped-nav');
+        const actions = document.getElementById('wrapped-actions');
+        const dots    = document.getElementById('wrapped-dots');
+        const card    = document.getElementById('wrapped-card');
+
+        if (historico.length === 0) {
+            nav.classList.add('hidden');
+            actions.classList.add('hidden');
+            dots.innerHTML = '';
+            card.className = 'w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center flex flex-col items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800';
+            card.style.minHeight = '420px';
+            card.innerHTML = `<div class="text-6xl mb-4">🗳️</div>
+                <h2 class="text-white font-black text-2xl mb-3">Nenhum voto ainda!</h2>
+                <p class="text-gray-300 text-sm leading-relaxed">Vote em algumas leis antes de ver seu Wrapped Cívico.</p>`;
+            return;
+        }
+
+        nav.classList.remove('hidden');
+        actions.classList.remove('hidden');
+        _wrappedData = _computarWrapped(historico);
+        _wrappedIdx  = 0;
+        _renderizarWrapped();
+    }
+
+    function fecharWrapped() {
+        const tela = document.getElementById('tela-wrapped');
+        tela.classList.add('hidden');
+        tela.classList.remove('flex');
+        document.getElementById('tela-principal').classList.remove('hidden');
+    }
+
+    function _computarWrapped(historico) {
+        let nVotos = 0, nVetos = 0, nIneg = 0, nAbst = 0;
+        for (const item of historico) {
+            if      (item.categoria === 'voto')                                                      nVotos++;
+            else if (item.categoria === 'veto')                                                      nVetos++;
+            else if (item.categoria === 'inegociavel_voto' || item.categoria === 'inegociavel_veto') nIneg++;
+            else if (item.categoria === 'abstencao')                                                 nAbst++;
+        }
+        const total = historico.length;
+
+        let perfil, perfilEmoji, perfilGrad;
+        if      (nVotos / total > 0.6) { perfil = 'Agente Progressista';  perfilEmoji = '🟢'; perfilGrad = 'from-green-500 to-emerald-700'; }
+        else if (nVetos / total > 0.6) { perfil = 'Guardião Crítico';     perfilEmoji = '🔴'; perfilGrad = 'from-red-500 to-rose-700'; }
+        else if (nIneg  / total > 0.3) { perfil = 'Ativista Inegociável'; perfilEmoji = '🔥'; perfilGrad = 'from-orange-500 to-red-600'; }
+        else if (nAbst  / total > 0.4) { perfil = 'Pensador Cauteloso';   perfilEmoji = '🤔'; perfilGrad = 'from-indigo-500 to-blue-700'; }
+        else                           { perfil = 'Cidadão Equilibrado';   perfilEmoji = '⚖️'; perfilGrad = 'from-yellow-500 to-amber-600'; }
+
+        const perfilData   = JSON.parse(localStorage.getItem('vv_perfil')       || '{}');
+        const similaridade = JSON.parse(localStorage.getItem('vv_similaridade') || '[]');
+        const topTema      = (perfilData.temas && perfilData.temas.length > 0) ? perfilData.temas[0] : 'Cidadania';
+        const maisParecido  = similaridade.length > 0 ? similaridade[0]                          : null;
+        const maisDiferente = similaridade.length > 0 ? similaridade[similaridade.length - 1]    : null;
+
+        return { total, nVotos, nVetos, nIneg, nAbst, perfil, perfilEmoji, perfilGrad, topTema, maisParecido, maisDiferente };
+    }
+
+    function _cardWrapped(n) {
+        const d = _wrappedData;
+        const TEMA_EMOJI = { 'Trabalho':'💼','Impostos':'💰','Saúde':'🏥','Educação':'📚','Segurança':'🛡️','Previdência':'🏦','Meio Ambiente':'🌿','Tecnologia':'💻','Habitação':'🏠','Transporte':'🚌','Cidadania':'🗳️' };
+
+        switch (n) {
+            case 0: return {
+                grad:  'bg-gradient-to-br ' + d.perfilGrad,
+                html:  '<div class="text-7xl mb-4">' + d.perfilEmoji + '</div>'
+                     + '<p class="text-white/70 text-xs font-bold uppercase tracking-widest mb-2">Seu perfil cívico</p>'
+                     + '<h2 class="text-white font-black text-3xl leading-tight mb-3">' + d.perfil + '</h2>'
+                     + '<p class="text-white/80 text-sm">Em ' + d.total + ' votaç' + (d.total !== 1 ? 'ões' : 'ão') + ', você mostrou quem é.</p>',
+                share: 'Meu perfil cívico é ' + d.perfilEmoji + ' ' + d.perfil + '! Descubra o seu em https://voto-veto.vercel.app'
+            };
+            case 1: {
+                const frase = d.total >= 10 ? 'Você é um cidadão exemplar! 🏆' : d.total >= 5 ? 'Está pegando o jeito da democracia! 💪' : 'Cada voto conta. Continue! 🌱';
+                return {
+                    grad:  'bg-gradient-to-br from-blue-500 to-cyan-600',
+                    html:  '<p class="text-white/70 text-xs font-bold uppercase tracking-widest mb-2">Você votou em</p>'
+                         + '<div class="text-9xl font-black text-white leading-none my-3">' + d.total + '</div>'
+                         + '<p class="text-white font-bold text-xl mb-3">lei' + (d.total !== 1 ? 's' : '') + '</p>'
+                         + '<p class="text-white/80 text-sm">' + frase + '</p>',
+                    share: 'Votei em ' + d.total + ' leis no Voto & Veto! Participe você também: https://voto-veto.vercel.app'
+                };
+            }
+            case 2: {
+                const te = TEMA_EMOJI[d.topTema] || '🗳️';
+                return {
+                    grad:  'bg-gradient-to-br from-emerald-500 to-teal-700',
+                    html:  '<div class="text-7xl mb-4">' + te + '</div>'
+                         + '<p class="text-white/70 text-xs font-bold uppercase tracking-widest mb-2">Sua principal causa</p>'
+                         + '<h2 class="text-white font-black text-4xl mb-3">' + d.topTema + '</h2>'
+                         + '<p class="text-white/80 text-sm">Este é o tema que mais importa para você.</p>',
+                    share: 'Minha causa no Voto & Veto é ' + te + ' ' + d.topTema + '! Qual é a sua? https://voto-veto.vercel.app'
+                };
+            }
+            case 3: {
+                if (!d.maisParecido) return {
+                    grad:  'bg-gradient-to-br from-purple-500 to-violet-700',
+                    html:  '<div class="text-5xl mb-4">🗳️</div><p class="text-white font-bold text-base leading-relaxed">Vote nas leis em destaque para descobrir qual deputado pensa como você!</p>',
+                    share: 'Descubra qual deputado pensa como você em https://voto-veto.vercel.app'
+                };
+                const mp = d.maisParecido;
+                return {
+                    grad:  'bg-gradient-to-br from-purple-500 to-violet-700',
+                    html:  '<p class="text-white/70 text-xs font-bold uppercase tracking-widest mb-3">Seu aliado no Congresso</p>'
+                         + '<div class="text-6xl mb-3">🤝</div>'
+                         + '<h2 class="text-white font-black text-2xl leading-tight mb-1">' + mp.nomeDeputado + '</h2>'
+                         + '<p class="text-white/80 text-sm mb-4">' + mp.siglaPartido + ' · ' + mp.siglaUf + '</p>'
+                         + '<div class="bg-white/20 rounded-2xl px-6 py-3"><span class="text-white font-black text-4xl">' + mp.percentual.toFixed(0) + '%</span><p class="text-white/70 text-xs mt-1">de compatibilidade</p></div>',
+                    share: 'Meu aliado no Congresso é ' + mp.nomeDeputado + ' (' + mp.siglaPartido + '-' + mp.siglaUf + ') com ' + mp.percentual.toFixed(0) + '% de compatibilidade! Voto & Veto: https://voto-veto.vercel.app'
+                };
+            }
+            case 4: {
+                if (!d.maisDiferente) return {
+                    grad:  'bg-gradient-to-br from-rose-600 to-red-800',
+                    html:  '<div class="text-5xl mb-4">🗳️</div><p class="text-white font-bold text-base leading-relaxed">Vote nas leis em destaque para descobrir qual deputado pensa diferente de você!</p>',
+                    share: 'Descubra qual deputado pensa diferente de você em https://voto-veto.vercel.app'
+                };
+                const md = d.maisDiferente;
+                return {
+                    grad:  'bg-gradient-to-br from-rose-600 to-red-800',
+                    html:  '<p class="text-white/70 text-xs font-bold uppercase tracking-widest mb-3">Seu opositor no Congresso</p>'
+                         + '<div class="text-6xl mb-3">⚔️</div>'
+                         + '<h2 class="text-white font-black text-2xl leading-tight mb-1">' + md.nomeDeputado + '</h2>'
+                         + '<p class="text-white/80 text-sm mb-4">' + md.siglaPartido + ' · ' + md.siglaUf + '</p>'
+                         + '<div class="bg-white/20 rounded-2xl px-6 py-3"><span class="text-white font-black text-4xl">' + md.percentual.toFixed(0) + '%</span><p class="text-white/70 text-xs mt-1">de compatibilidade</p></div>',
+                    share: 'Meu opositor no Congresso é ' + md.nomeDeputado + ' (' + md.siglaPartido + '-' + md.siglaUf + ') com ' + md.percentual.toFixed(0) + '% de compatibilidade. Voto & Veto: https://voto-veto.vercel.app'
+                };
+            }
+            default: return {
+                grad:  'bg-gradient-to-br from-green-600 via-yellow-500 to-blue-700',
+                html:  '<div class="text-7xl mb-4">🇧🇷</div>'
+                     + '<h2 class="text-white font-black text-3xl mb-3">Voto & Veto</h2>'
+                     + '<p class="text-white/90 font-bold text-lg mb-4">Descubra seu perfil cívico</p>'
+                     + '<p class="text-white/70 text-sm">Vote nas leis reais do Congresso Nacional.</p>'
+                     + '<p class="text-white font-bold text-sm mt-3">voto-veto.vercel.app</p>',
+                share: 'Descubra seu perfil cívico no Voto & Veto! Vote nas leis reais do Congresso e veja qual deputado pensa como você. 🇧🇷 https://voto-veto.vercel.app'
+            };
+        }
+    }
+
+    function _renderizarWrapped() {
+        const { grad, html } = _cardWrapped(_wrappedIdx);
+        const card = document.getElementById('wrapped-card');
+        card.className = 'w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center flex flex-col items-center justify-center ' + grad;
+        card.style.minHeight = '420px';
+        card.innerHTML = html;
+
+        document.getElementById('wrapped-dots').innerHTML = Array.from({ length: N_CARDS_WRAPPED }, (_, i) =>
+            '<div class="w-2 h-2 rounded-full transition-all ' + (i === _wrappedIdx ? 'bg-white' : 'bg-white/30') + '"></div>'
+        ).join('');
+
+        document.getElementById('wrapped-prev').classList.toggle('invisible', _wrappedIdx === 0);
+        document.getElementById('wrapped-next').innerText = _wrappedIdx === N_CARDS_WRAPPED - 1 ? 'Concluir ✓' : 'Próximo →';
+    }
+
+    function navegarWrapped(dir) {
+        const novo = _wrappedIdx + dir;
+        if (novo < 0) return;
+        if (novo >= N_CARDS_WRAPPED) { fecharWrapped(); return; }
+        _wrappedIdx = novo;
+        _renderizarWrapped();
+    }
+
+    async function salvarImagemWrapped() {
+        if (typeof html2canvas === 'undefined') return;
+        try {
+            const canvas = await html2canvas(document.getElementById('wrapped-card'), { scale: 2, useCORS: true, backgroundColor: null });
+            const a = document.createElement('a');
+            a.download = 'voto-veto-wrapped-' + (_wrappedIdx + 1) + '.png';
+            a.href = canvas.toDataURL('image/png');
+            a.click();
+        } catch (_) {}
+    }
+
+    function compartilharWhatsApp() {
+        const { share } = _cardWrapped(_wrappedIdx);
+        window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(share), '_blank');
     }
 
     // ── VOTOS DOS DEPUTADOS (background) ─────────────────────────────────────
